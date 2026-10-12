@@ -1,0 +1,11 @@
+{
+  "appId": "com.neet.chemistry",
+  "appName": "Chemistry for NEET",
+  "webDir": "www",
+  "backgroundColor": "#0b1220",
+  "server": { "androidScheme": "https" },
+  "android": {
+    "backgroundColor": "#0b1220",
+    "adjustMarginsForEdgeToEdge": "auto"
+  }
+}
