@@ -78,5 +78,22 @@ for ed, n, name in CHAPTERS:
     else:
         missing.append(f"{ed}-{n:02d}")
         print(f"::warning::{ed} chapter {n:02d}: no matching PDF found")
+# Old NCERT chapters whose PDF is not uploaded yet but whose content is the same in the new NCERT:
+# the Old chapter opens the New chapter's PDF (no duplicate file in the APK). Upload the real O-file and it is used instead.
+OLD_TO_NEW = {1: 1, 2: 2, 3: 3, 4: 4, 6: 5, 7: 6, 8: 7, 12: 8, 13: 9, 16: 10, 17: 11, 18: 12,
+              22: 13, 23: 14, 24: 15, 25: 16, 26: 17, 27: 18, 28: 19}
+names = {(ed, n): name for ed, n, name in CHAPTERS}
+INDEX = "www/index.html"
+if missing and os.path.exists(INDEX):
+    html = open(INDEX, encoding="utf-8").read()
+    for m in list(missing):
+        ed, n = m.split("-"); n = int(n)
+        if ed == "old" and n in OLD_TO_NEW:
+            old_name, new_name = names[("old", n)], names[("new", OLD_TO_NEW[n])]
+            if os.path.exists(f"www/pdfs/{new_name}.pdf") and f"pdfs/{old_name}.pdf" in html:
+                html = html.replace(f"pdfs/{old_name}.pdf", f"pdfs/{new_name}.pdf")
+                missing.remove(m)
+                print(f"old {n:02d} -> uses new NCERT chapter {OLD_TO_NEW[n]:02d} PDF")
+    open(INDEX, "w", encoding="utf-8").write(html)
 if missing:
     print("Chapters without a PDF:", missing)
