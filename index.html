@@ -1766,6 +1766,22 @@
       var a = Math.atan2(y1 - y0, x1 - x0); g.beginPath(); g.moveTo(x1, y1); g.lineTo(x1 - 9 * Math.cos(a - 0.4), y1 - 9 * Math.sin(a - 0.4)); g.lineTo(x1 - 9 * Math.cos(a + 0.4), y1 - 9 * Math.sin(a + 0.4)); g.closePath(); g.fill();
     }
     function txt(s, x, y, col, sz, al) { sz = sz || 12; g.fillStyle = col || '#e2e8f0'; g.font = sz + 'px system-ui,sans-serif'; var w = g.measureText(s).width, mx = W - 20 - (al === 'center' ? 0 : x); if (al !== 'center' && w > mx && mx > 60) { sz = Math.max(8, sz * mx / w); g.font = sz + 'px system-ui,sans-serif'; } g.textAlign = al || 'left'; g.fillText(s, x, y); }
+    function rnd(a, b) { return a + Math.random() * (b - a); }
+    function ln(x0, y0, x1, y1, col, w) { g.strokeStyle = col || '#64748b'; g.lineWidth = w || 1; g.beginPath(); g.moveTo(x0, y0); g.lineTo(x1, y1); g.stroke(); g.lineWidth = 1; }
+    function dot(x, y, r, fill, stroke) { g.beginPath(); g.arc(x, y, Math.max(0.5, r), 0, 7); if (fill) { g.fillStyle = fill; g.fill(); } if (stroke) { g.strokeStyle = stroke; g.stroke(); } }
+    function rect(x, y, w, h, fill, stroke) { if (fill) { g.fillStyle = fill; g.fillRect(x, y, w, h); } if (stroke) { g.strokeStyle = stroke; g.strokeRect(x, y, w, h); } }
+    function G(l, t, w, h, x0, x1, y0, y1, xl, yl) {
+      var o = { l: l, t: t, w: w, h: h, X: function (x) { return l + w * (x - x0) / (x1 - x0); }, Y: function (y) { return t + h - h * (y - y0) / (y1 - y0); } };
+      g.fillStyle = '#0b1220'; g.fillRect(l, t, w, h); g.strokeStyle = '#334155'; g.strokeRect(l, t, w, h);
+      if (xl) txt(xl, l + w, t + h + 11, '#94a3b8', 10, 'right'); if (yl) txt(yl, l + 2, t - 3, '#94a3b8', 10);
+      return o;
+    }
+    function CV(o, f, x0, x1, col, lw, dash) {
+      g.save(); g.beginPath(); g.rect(o.l, o.t, o.w, o.h); g.clip(); g.strokeStyle = col; g.lineWidth = lw || 2; if (dash) g.setLineDash(dash);
+      g.beginPath(); for (var i = 0; i <= 90; i++) { var x = x0 + (x1 - x0) * i / 90, y = f(x); if (i) g.lineTo(o.X(x), o.Y(y)); else g.moveTo(o.X(x), o.Y(y)); }
+      g.stroke(); g.setLineDash([]); g.restore(); g.lineWidth = 1;
+    }
+    function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
     function play(m) { M = m; rs(); if (m.setup) m.setup(); last = performance.now(); requestAnimationFrame(tick); }
     function tick(n) {
       var dt = Math.min(0.05, (n - last) / 1000); last = n;
@@ -1777,7 +1793,7 @@
   }
   function fnBody(f) { var s = f.toString(); return s.slice(s.indexOf('{') + 1, s.lastIndexOf('}')); }
   function simDoc(title, note, fn) {
-    var css = 'html,body{margin:0;background:#0b1220;color:#e5e7eb;font:13px system-ui,sans-serif}#bar{display:flex;gap:8px;align-items:center;padding:6px 8px}#bar b{flex:1;font-size:13px}button{background:#1e293b;color:#fff;border:1px solid #334155;border-radius:8px;padding:6px 12px;font-size:14px}canvas{display:block;width:100%;height:340px;touch-action:none;background:#0f172a}@media(min-height:720px){canvas{height:52vh}}#ctl{display:grid;grid-template-columns:1fr 1fr;gap:6px 14px;padding:8px 10px}#ctl label{display:block;font-size:12px}#ctl label b{color:#7dd3fc}#ctl input{width:100%}#note{padding:2px 10px 10px;font-size:12px;color:#94a3b8;line-height:1.4}';
+    var css = 'html,body{margin:0;background:#0b1220;color:#e5e7eb;font:13px system-ui,sans-serif}#bar{display:flex;gap:8px;align-items:center;padding:6px 8px}#bar b{flex:1;font-size:13px}button{background:#1e293b;color:#fff;border:1px solid #334155;border-radius:8px;padding:6px 12px;font-size:14px}canvas{display:block;width:100%;height:400px;touch-action:none;background:#0f172a}@media(min-height:720px){canvas{height:56vh}}#ctl{display:grid;grid-template-columns:1fr 1fr;gap:6px 14px;padding:8px 10px}#ctl label{display:block;font-size:12px}#ctl label b{color:#7dd3fc}#ctl input{width:100%}#note{padding:2px 10px 10px;font-size:12px;color:#94a3b8;line-height:1.4}';
     var t = String(title).replace(/</g, '&lt;');
     return '<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>' + css + '</style></head><body><div id="bar"><b>' + t + '</b><button id="pp" type="button">⏸</button><button id="rr" type="button">↺</button></div><canvas id="c"></canvas><div id="ctl"></div><div id="note">' + String(note).replace(/</g, '&lt;') + '</div><script>(function(){' + fnBody(PRE) + fnBody(fn) + '})();<\/script></body></html>';
   }
@@ -1813,7 +1829,7 @@
   function simRun(card) {
     var id = card.getAttribute('data-sim'), html = SIMS[id]; if (!html) return;
     var h = card.querySelector('.ffl,.simf'); var f = document.createElement('iframe');
-    f.className = 'simf'; f.setAttribute('sandbox', 'allow-scripts'); f.style.cssText = 'width:100%;height:560px;border:0;display:block;background:#0f172a'; f.srcdoc = simSafe(html);
+    f.className = 'simf'; f.setAttribute('sandbox', 'allow-scripts'); f.style.cssText = 'width:100%;height:680px;border:0;display:block;background:#0f172a'; f.srcdoc = simSafe(html);
     if (h) h.replaceWith(f);
   }
   function simFull(card) {
@@ -1860,129 +1876,688 @@
     scrollEnd();
   }
 
-  var SIM_EX = 'gas laws (Boyle and Charles), acid-base titration curve, Arrhenius equation and activation energy, VSEPR shapes of molecules';
+  var SIM_EX = 'Rutherford scattering, gas laws, VSEPR shapes, Le Chatelier principle, acid-base titration, Daniell cell, reaction order, collision theory, crystal lattices, Raoult law, SN1 vs SN2, Bohr model, crystal field splitting, periodic table configuration, azeotropes, rusting, molecular orbitals, Beer-Lambert law, Faraday electrolysis, colligative properties';
   SIM_LIB.push({
-    key: 'gas', title: '2D · Gas laws (Boyle, Charles)', re: /gas law|boyle|charles|gay.?lussac|ideal gas|kinetic (theory|molecular)|pressure.{0,12}volume|pv\s*=\s*nrt|avogadro law|maxwell/,
-    desc: 'gas particles in a box: change temperature, volume and amount to see pressure change', note: 'PV = nRT. At constant T, P is inversely proportional to V (Boyle). At constant P, V is directly proportional to T in kelvin (Charles). Hotter gas means faster molecules, so more collisions with the wall and higher pressure.',
+    key: 'rutherford', title: "2D · Rutherford's alpha scattering experiment", re: /rutherford|alpha.{0,12}scattering|gold foil|geiger|marsden|zns screen|nuclear model of (the )?atom/,
+    desc: 'alpha particles hitting gold foil: macro lab view and atomic view with Coulomb deflection and angle histogram', note: 'Almost all alpha particles go straight through (atom is mostly empty space), a few are deflected, and about 1 in 8000 bounces back (>90°), so the positive charge sits in a tiny dense nucleus. Closest approach d = kZ₁Z₂e²/E, and tan(θ/2) = d / 2b where b is the impact parameter.',
     fn: function () {
-      sl('T', 'Temperature', 200, 600, 300, 10, ' K'); sl('V', 'Volume of container', 30, 100, 100, 1, '%'); sl('N', 'Amount of gas', 10, 60, 30, 1, ' particles');
-      function rnd(a, b) { return a + Math.random() * (b - a); }
-      var ps = [], hits = 0, hitT = 0, pr0 = 0;
-      function rst() { ps = []; for (var i = 0; i < P.N; i++) { var a = rnd(0, 6.283); ps.push({ x: rnd(0.05, 0.9), y: rnd(0.05, 0.95), a: a }); } }
+      sl('V', 'View (1 Macro lab, 2 Atomic)', 1, 2, 1, 1); sl('E', 'Alpha kinetic energy', 2, 10, 5, 0.5, ' MeV'); sl('Z', 'Nucleus charge Z (Al 13, Au 79)', 13, 79, 79, 1); sl('I', 'Beam intensity', 1, 10, 4, 1);
+      var cnt, bins, parts, flash, micro, acc, acc2;
+      function rst() { cnt = { tot: 0, st: 0, df: 0, bk: 0 }; bins = []; for (var i = 0; i < 18; i++) bins.push(0); parts = []; flash = []; micro = []; acc = 0; acc2 = 0; }
+      function Dm() { return 1.44 * 2 * P.Z / P.E; }
+      function p90() { return Math.pow(P.Z / 79, 2) * Math.pow(5 / P.E, 2) / 8000; }
+      function theta() { var bmax = Dm() / 2 / Math.sqrt(p90()), b = bmax * Math.sqrt(Math.random()); return 2 * Math.atan(Dm() / (2 * Math.max(b, 1e-9))) * 180 / Math.PI; }
+      function tally(th) { cnt.tot++; if (th < 10) cnt.st++; else if (th < 90) cnt.df++; else cnt.bk++; bins[Math.min(17, Math.floor(th / 10))]++; }
+      function DV() { return 42 * (P.Z / 79) * (5 / P.E); }
+      var NX = [], NY = [];
+      function grid() { NX = []; NY = []; var lx = 8, lw = W - 16, ly = 60, lh = H - 172, c, r; for (c = 0; c < 5; c++) for (r = 0; r < 5; r++) { NX.push(lx + lw * (0.2 + c * 0.15)); NY.push(ly + lh * (0.12 + r * 0.19)); } }
+      function spawn() { var k = Math.floor(Math.random() * NX.length), b = rnd(-60, 60); micro.push({ x: NX[k] - 150, y: NY[k] + b, vx: 170, vy: 0, nx: NX[k], ny: NY[k], tr: [], done: false, th: 0 }); }
       play({
-        setup: rst, reset: rst, change: function (k) { if (k === 'N') rst(); },
+        setup: function () { rst(); grid(); }, reset: function () { rst(); grid(); }, change: function (k) { if (k !== 'I') { rst(); grid(); } },
         step: function (dt) {
-          var wall = P.V / 100, sp = Math.sqrt(P.T / 300) * 0.55;
-          hitT += dt;
-          ps.forEach(function (p) {
-            p.x += Math.cos(p.a) * sp * dt; p.y += Math.sin(p.a) * sp * dt;
-            if (p.x > wall) { p.x = wall - (p.x - wall); p.a = Math.PI - p.a; hits++; } if (p.x < 0) { p.x = -p.x; p.a = Math.PI - p.a; }
-            if (p.y > 1) { p.y = 2 - p.y; p.a = -p.a; } if (p.y < 0) { p.y = -p.y; p.a = -p.a; }
-          });
-          if (hitT > 1) { pr0 = hits / hitT; hits = 0; hitT = 0; }
+          var i, j;
+          if (Math.round(P.V) === 1) {
+            acc += P.I * 400 * dt; var n = Math.floor(acc); acc -= n;
+            for (i = 0; i < n; i++) { var th = theta(); tally(th); if (parts.length < 90 && (th >= 10 || Math.random() < 0.08)) parts.push({ t: 0, th: th * (Math.random() < 0.5 ? 1 : -1) }); }
+            parts.forEach(function (p) { p.t += dt * 1.6; if (p.t >= 1 && !p.f) { p.f = 1; flash.push({ a: p.th, life: 1 }); } });
+            parts = parts.filter(function (p) { return p.t < 1; }); flash.forEach(function (f) { f.life -= dt * 1.2; }); flash = flash.filter(function (f) { return f.life > 0; }); if (flash.length > 140) flash.splice(0, flash.length - 140);
+          } else {
+            acc2 += P.I * 1.1 * dt; while (acc2 >= 1) { acc2 -= 1; spawn(); }
+            var K = DV() * 0.5 * 170 * 170, h = dt / 8;
+            micro.forEach(function (m) {
+              if (m.done) return;
+              for (j = 0; j < 8; j++) { var dx = m.x - m.nx, dy = m.y - m.ny, r2 = dx * dx + dy * dy + 1, r = Math.sqrt(r2), a = K / r2; m.vx += a * dx / r * h; m.vy += a * dy / r * h; m.x += m.vx * h; m.y += m.vy * h; }
+              m.tr.push([m.x, m.y]); if (m.tr.length > 70) m.tr.shift();
+              var d = Math.hypot(m.x - m.nx, m.y - m.ny);
+              if ((d > 170 && (m.x - m.nx) * m.vx + (m.y - m.ny) * m.vy > 0) || m.x < -50 || m.x > W + 50) { m.done = true; m.th = Math.acos(clamp(m.vx / Math.hypot(m.vx, m.vy), -1, 1)) * 180 / Math.PI; tally(m.th); m.life = 1; }
+            });
+            micro.forEach(function (m) { if (m.done) m.life -= dt * 0.5; }); micro = micro.filter(function (m) { return !m.done || m.life > 0; });
+          }
         },
         draw: function () {
-          var l = 14, t = 46, w = W - 28, h = H - 110, ww = w * P.V / 100;
-          g.strokeStyle = '#64748b'; g.lineWidth = 2; g.strokeRect(l, t, w, h); g.fillStyle = '#1e293b'; g.fillRect(l + ww, t, w - ww, h);
-          g.fillStyle = '#a78bfa'; g.fillRect(l + ww - 4, t, 8, h);
-          g.fillStyle = '#38bdf8'; ps.forEach(function (p) { g.beginPath(); g.arc(l + p.x * w, t + p.y * h, 4, 0, 7); g.fill(); }); g.lineWidth = 1;
-          var Prel = P.N * P.T / (P.V * 3);
-          txt('P ∝ nT / V = ' + Prel.toFixed(2) + ' (relative units)', 12, 18, '#e2e8f0', 13);
-          txt('Wall hits per second: ' + pr0.toFixed(0), 12, 36, '#94a3b8', 12);
-          txt('Piston (volume = ' + P.V + '%)   |   T = ' + P.T + ' K', 12, H - 36, '#94a3b8', 12);
-          txt('Boyle: halve V → P doubles.   Charles: double T (K) → V doubles at constant P.', 12, H - 16, '#94a3b8', 11);
+          var lx = 8, lw = W - 16, ly = 60, lh = H - 172, macro = Math.round(P.V) === 1, i;
+          rect(lx, ly, lw, lh, '#0b1220', '#334155');
+          if (macro) {
+            var fx = lx + lw * 0.42, fy = ly + lh / 2, R = Math.min(lw * 0.56, lh / 2 - 4), x0 = lx + 18;
+            g.setLineDash([4, 4]); g.strokeStyle = '#166534'; g.beginPath(); g.arc(fx, fy, R, 0, 7); g.stroke(); g.setLineDash([]);
+            rect(lx + 2, fy - 12, 14, 24, '#7c3aed', '#c4b5fd'); txt('α source', lx + 2, fy + 26, '#c4b5fd', 9);
+            ln(x0 + 6, fy - 5, fx, fy - 5, '#334155'); ln(x0 + 6, fy + 5, fx, fy + 5, '#334155'); rect(fx - 2, fy - 22, 4, 44, '#facc15'); txt('gold foil', fx - 20, fy - 28, '#fde047', 9); txt('ZnS screen', fx + R * 0.5, fy - R + 12, '#4ade80', 9);
+            flash.forEach(function (f) { var a = f.a * Math.PI / 180; dot(fx + R * Math.cos(a), fy - R * Math.sin(a), 2 + 4 * f.life, 'rgba(190,255,120,' + f.life.toFixed(2) + ')'); });
+            parts.forEach(function (p) { var x, y; if (p.t < 0.5) { x = x0 + (fx - x0) * p.t * 2; y = fy; } else { var a = p.th * Math.PI / 180, q = (p.t - 0.5) * 2; x = fx + R * q * Math.cos(a); y = fy - R * q * Math.sin(a); } dot(x, y, 2.4, '#38bdf8'); });
+            txt('Macro view: each flash = one alpha particle hitting the screen', lx + 4, ly + lh - 5, '#94a3b8', 10);
+          } else {
+            for (i = 0; i < NX.length; i++) { dot(NX[i], NY[i], 24, 'rgba(250,204,21,.10)', 'rgba(250,204,21,.25)'); dot(NX[i], NY[i], 3.2, '#ef4444'); }
+            micro.forEach(function (m) { g.strokeStyle = m.done ? 'rgba(56,189,248,' + (m.life * 0.7).toFixed(2) + ')' : '#38bdf8'; g.beginPath(); m.tr.forEach(function (q, j) { if (j) g.lineTo(q[0], q[1]); else g.moveTo(q[0], q[1]); }); g.stroke(); if (!m.done) dot(m.x, m.y, 3, '#7dd3fc'); });
+            txt('Atomic view: red = nucleus (not to scale), faint ring = electron cloud', lx + 4, ly + lh - 5, '#94a3b8', 10);
+          }
+          txt('Emitted ' + cnt.tot + '   Straight(<10°) ' + cnt.st, 10, 14, '#e2e8f0', 12); txt('Deflected(10–90°) ' + cnt.df + '   Bounced back(>90°) ' + cnt.bk, 10, 30, '#fbbf24', 12);
+          txt('Closest approach d = ' + Dm().toFixed(0) + ' fm   |   P(θ>90°) ≈ 1 in ' + Math.round(1 / p90()), 10, 46, '#94a3b8', 11);
+          var hl = 10, ht = H - 100, hw = W - 20, hh = 76, mx = 1, bw = hw / 18; bins.forEach(function (b) { mx = Math.max(mx, b); }); var o = G(hl, ht, hw, hh, 0, 180, 0, 1, 'scattering angle θ (°)', 'log count');
+          bins.forEach(function (b, k) { var v = Math.log(1 + b) / Math.log(1 + mx); rect(hl + k * bw + 1, ht + hh - v * hh, bw - 2, v * hh, k >= 9 ? '#ef4444' : (k >= 1 ? '#f59e0b' : '#38bdf8')); });
+          txt('0', hl, ht + hh + 11, '#64748b', 9); txt('90', hl + hw / 2 - 5, ht + hh + 11, '#64748b', 9);
         }
       });
     }
   });
   SIM_LIB.push({
-    key: 'titration', title: '2D · Acid-base titration curve', re: /titration|neutrali[sz]ation|equivalence point|end point|indicator|phenolphthalein|methyl orange|weak acid|strong acid|buffer region|half.?equivalence/,
-    desc: 'pH vs volume of NaOH added for strong or weak acid, with indicator colours', note: 'At the equivalence point moles of acid = moles of base. For a strong acid the pH jumps from about 3 to 11 around 25 mL and equivalence is at pH 7. For a weak acid the equivalence point is above 7, and at half-equivalence pH = pKa (buffer region).',
+    key: 'gas', title: '2D · Gas laws (Boyle, Charles, Gay-Lussac, Avogadro)', re: /gas law|boyle|charles|gay.?lussac|avogadro.{0,10}law|ideal gas|kinetic (theory|molecular)|pv\s*=\s*nrt|isotherm|isobar|isochor|piston/,
+    desc: 'gas molecules in a container with piston and burner; pick Boyle, Charles, Gay-Lussac or Avogadro mode with live P-V, V-T, P-T, V-n graph', note: 'PV = nRT. Boyle: P ∝ 1/V (T, n constant). Charles: V ∝ T (P, n constant). Gay-Lussac: P ∝ T (V, n constant). Avogadro: V ∝ n (P, T constant). Hotter gas = faster molecules = more wall collisions.',
     fn: function () {
-      sl('C', 'Concentration of acid and base', 0.05, 0.5, 0.1, 0.01, ' M'); sl('pKa', 'pKa of the acid (0 = strong acid)', 0, 9, 0, 0.1);
-      var Va = 25;
-      function pH(Vb) {
-        var Ct = P.C * Va / (Va + Vb), Na = P.C * Vb / (Va + Vb), Ka = P.pKa < 0.05 ? 1e6 : Math.pow(10, -P.pKa), lo = 0, hi = 14, i;
-        for (i = 0; i < 50; i++) { var mid = (lo + hi) / 2, h = Math.pow(10, -mid), oh = Math.pow(10, mid - 14), f = h + Na - Ct * Ka / (Ka + h) - oh; if (f > 0) lo = mid; else hi = mid; }
-        return (lo + hi) / 2;
-      }
+      sl('M', 'Law (1 Boyle, 2 Charles, 3 Gay-Lussac, 4 Avogadro)', 1, 4, 1, 1); sl('T', 'Temperature', 200, 600, 300, 10, ' K'); sl('V', 'Volume (piston)', 20, 100, 60, 1, '%'); sl('N', 'Amount of gas n', 10, 60, 30, 1, ' units');
+      var ps = [], P0 = 50, hits = 0, ht = 0, pr0 = 0, Vn = 60;
+      function mode() { return Math.round(P.M); }
+      function Veff() { var m = mode(); return (m === 2 || m === 4) ? clamp(P.N * P.T / (3 * P0), 20, 100) : P.V; }
+      function Pres() { return P.N * P.T / (3 * Veff()); }
+      function rst() { ps = []; for (var i = 0; i < P.N; i++) ps.push({ x: rnd(0.05, 0.9), y: rnd(0.05, 0.95), a: rnd(0, 6.283) }); }
       play({
+        setup: rst, reset: rst, change: function (k) { if (k === 'N' || k === 'M') rst(); },
+        step: function (dt) {
+          var wall = Veff() / 100, sp = Math.sqrt(P.T / 300) * 0.5; ht += dt;
+          while (ps.length < P.N) ps.push({ x: rnd(0.05, 0.5), y: rnd(0.05, 0.95), a: rnd(0, 6.283) }); while (ps.length > P.N) ps.pop();
+          ps.forEach(function (p) { p.x += Math.cos(p.a) * sp * dt; p.y += Math.sin(p.a) * sp * dt; if (p.x > wall) { p.x = wall - (p.x - wall); p.a = Math.PI - p.a; hits++; } if (p.x < 0) { p.x = -p.x; p.a = Math.PI - p.a; } if (p.y > 1) { p.y = 2 - p.y; p.a = -p.a; } if (p.y < 0) { p.y = -p.y; p.a = -p.a; } if (p.x > wall) p.x = wall * 0.98; });
+          if (ht > 1) { pr0 = hits / ht; hits = 0; ht = 0; }
+        },
         draw: function (t) {
-          var l = 40, b = H - 46, w = W - l - 14, top = 44, h = b - top, i;
-          g.strokeStyle = '#334155'; for (i = 0; i <= 14; i += 2) { var yy = b - h * i / 14; g.beginPath(); g.moveTo(l, yy); g.lineTo(l + w, yy); g.stroke(); txt('' + i, 14, yy + 4, '#64748b', 10); }
-          g.fillStyle = 'rgba(244,114,182,.18)'; g.fillRect(l, b - h * 10 / 14, w, h * 1.8 / 14); txt('phenolphthalein 8.2–10', l + 6, b - h * 10 / 14 + 12, '#f9a8d4', 10);
-          g.fillStyle = 'rgba(251,146,60,.18)'; g.fillRect(l, b - h * 4.4 / 14, w, h * 1.3 / 14); txt('methyl orange 3.1–4.4', l + 6, b - h * 3.1 / 14 - 3, '#fdba74', 10);
-          g.strokeStyle = '#64748b'; g.beginPath(); g.moveTo(l, top); g.lineTo(l, b); g.lineTo(l + w, b); g.stroke(); txt('Volume of NaOH (mL) →', l + w - 130, b + 18, '#94a3b8', 11); txt('pH', 6, top - 8, '#94a3b8', 11);
-          g.strokeStyle = '#a78bfa'; g.lineWidth = 3; g.beginPath(); for (i = 0; i <= 100; i++) { var V = i / 2, X = l + w * V / 50, Y = b - h * pH(V) / 14; if (i) g.lineTo(X, Y); else g.moveTo(X, Y); } g.stroke(); g.lineWidth = 1;
-          g.setLineDash([4, 4]); g.strokeStyle = '#475569'; g.beginPath(); g.moveTo(l + w / 2, top); g.lineTo(l + w / 2, b); g.stroke(); g.setLineDash([]); txt('equivalence (25 mL)', l + w / 2 + 4, top + 12, '#94a3b8', 10);
-          var Vb = (t * 3) % 50, ph = pH(Vb), X0 = l + w * Vb / 50, Y0 = b - h * ph / 14;
-          g.fillStyle = '#f97316'; g.beginPath(); g.arc(X0, Y0, 6, 0, 7); g.fill();
-          var col = ph < 8.2 ? '#e2e8f0' : (ph < 10 ? '#f472b6' : '#d946ef'); g.fillStyle = col; g.fillRect(l + w - 60, 8, 46, 22); g.strokeStyle = '#64748b'; g.strokeRect(l + w - 60, 8, 46, 22);
-          txt('V = ' + Vb.toFixed(1) + ' mL   pH = ' + ph.toFixed(2), 12, 18, '#e2e8f0', 13); txt('flask colour (phenolphthalein)', 12, 34, '#94a3b8', 11);
-          txt(P.pKa < 0.05 ? 'Strong acid – strong base: equivalence at pH 7' : 'Weak acid: half-equivalence at 12.5 mL where pH = pKa = ' + P.pKa.toFixed(1), l + 6, b - 8, '#94a3b8', 11);
+          var m = mode(), l = 14, top = 58, w = W * 0.56, h = H * 0.44, v = Veff(), ww = w * v / 100, i;
+          rect(l, top, w, h, null, '#64748b'); rect(l + ww, top, w - ww, h, '#1e293b'); rect(l + ww - 4, top, 8, h, '#a78bfa'); ln(l + ww + 4, top + h / 2, l + w + 14, top + h / 2, '#a78bfa', 3); txt('piston', l + ww - 14, top - 4, '#c4b5fd', 10);
+          ps.forEach(function (p) { dot(l + p.x * w, top + p.y * h, 3.6, '#38bdf8'); });
+          var fl = (P.T - 300) / 300; if (fl > 0) { for (i = 0; i < 5; i++) { var fx = l + w * (0.12 + i * 0.19), fh = 10 + 24 * fl + 5 * Math.sin(t * 9 + i); g.fillStyle = 'rgba(249,115,22,.85)'; g.beginPath(); g.moveTo(fx - 8, top + h + 22); g.lineTo(fx, top + h + 22 - fh); g.lineTo(fx + 8, top + h + 22); g.fill(); } txt('burner', l + 2, top + h + 36, '#fdba74', 10); } else { for (i = 0; i < 5; i++) { var cx = l + w * (0.12 + i * 0.19); dot(cx, top + h + 16, 6 - 4 * fl, 'rgba(147,197,253,.7)'); } txt('cooler', l + 2, top + h + 36, '#93c5fd', 10); }
+          var px = l + w + 30; txt('P = ' + Pres().toFixed(1) + ' (rel.)', px, top + 14, '#e2e8f0', 12); txt('V = ' + v.toFixed(0) + ' %', px, top + 32, '#e2e8f0', 12); txt('T = ' + P.T + ' K', px, top + 50, '#e2e8f0', 12); txt('n = ' + P.N, px, top + 68, '#e2e8f0', 12); txt('hits/s ' + pr0.toFixed(0), px, top + 92, '#94a3b8', 11);
+          var names = ['Boyle: T, n constant (P ∝ 1/V)', 'Charles: P, n constant (V ∝ T)', 'Gay-Lussac: V, n constant (P ∝ T)', 'Avogadro: P, T constant (V ∝ n)']; txt(names[m - 1], 14, 18, '#fbbf24', 13);
+          txt(m === 1 ? 'Move the Volume slider' : (m === 2 ? 'Move Temperature: volume follows' : (m === 3 ? 'Move Temperature: pressure follows' : 'Move n: volume follows')), 14, 36, '#94a3b8', 11);
+          var gl = 44, gt = top + h + 52, gw = W - 60, gh = H - gt - 22, o, f, x0, x1, y1, cx0, cy0;
+          if (m === 1) { o = G(gl, gt, gw, gh, 20, 100, 0, 150, 'V', 'P'); f = function (x) { return P.N * P.T / (3 * x); }; x0 = 20; x1 = 100; cx0 = v; cy0 = Pres(); }
+          else if (m === 2) { o = G(gl, gt, gw, gh, 200, 600, 0, 100, 'T (K)', 'V'); f = function (x) { return clamp(P.N * x / (3 * P0), 0, 120); }; x0 = 200; x1 = 600; cx0 = P.T; cy0 = v; }
+          else if (m === 3) { o = G(gl, gt, gw, gh, 200, 600, 0, 150, 'T (K)', 'P'); f = function (x) { return P.N * x / (3 * P.V); }; x0 = 200; x1 = 600; cx0 = P.T; cy0 = Pres(); }
+          else { o = G(gl, gt, gw, gh, 10, 60, 0, 100, 'n', 'V'); f = function (x) { return clamp(x * P.T / (3 * P0), 0, 120); }; x0 = 10; x1 = 60; cx0 = P.N; cy0 = v; }
+          CV(o, f, x0, x1, '#a78bfa', 3); dot(o.X(cx0), o.Y(clamp(cy0, 0, 150)), 5, '#f97316');
         }
       });
     }
   });
   SIM_LIB.push({
-    key: 'arrhenius', title: '2D · Arrhenius equation and activation energy', re: /arrhenius|activation energy|rate constant|temperature dependence|maxwell.?boltzmann|energy distribution|collision theory|effective collision|\bea\b|catalyst lowers/,
-    desc: 'energy distribution of molecules, fraction above Ea and k = A e^(-Ea/RT)', note: 'k = A·e^(−Ea/RT). The shaded area is the fraction of molecules with energy ≥ Ea. Raising temperature (or lowering Ea with a catalyst) increases that fraction, so the rate constant rises. A 10 °C rise roughly doubles the rate for many reactions.',
+    key: 'vsepr', title: '3D · VSEPR molecular shape predictor', d3: true, re: /vsepr|shape of (the )?molecule|molecular (shape|geometry)|tetrahedral|trigonal|octahedral|\bbent\b|see.?saw|t.?shaped|square (planar|pyramidal)|bond angle|lone pair|steric number/,
+    desc: 'rotating 3D molecule: choose bond pairs and lone pairs (steric number 2 to 6) to see name, bond angle and lone-pair compression', note: 'Electron domains around the central atom repel and spread out. Steric number = bond pairs + lone pairs. Lone pairs repel more than bond pairs, so bond angles shrink (CH₄ 109.5°, NH₃ 107°, H₂O 104.5°). Drag to rotate.',
     fn: function () {
-      sl('Ea', 'Activation energy Ea', 20, 120, 60, 1, ' kJ/mol'); sl('T', 'Temperature', 250, 500, 300, 5, ' K');
-      var R = 8.314;
-      function dist(E, T) { var kT = R * T / 1000; return Math.sqrt(E) * Math.exp(-E / kT); }
-      function frac(T, Ea) { var a = 0, tot = 0, E, dE = 0.5; for (E = dE; E < 400; E += dE) { var f = dist(E, T); tot += f; if (E >= Ea) a += f; } return a / tot; }
-      play({
-        draw: function () {
-          var l = 36, b = H - 52, w = W - l - 14, top = 50, h = b - top, E, mx = 0;
-          for (E = 1; E < 200; E += 1) mx = Math.max(mx, dist(E, 500));
-          g.strokeStyle = '#64748b'; g.beginPath(); g.moveTo(l, top); g.lineTo(l, b); g.lineTo(l + w, b); g.stroke(); txt('Energy of molecules (kJ/mol) →', l + w - 170, b + 18, '#94a3b8', 11); txt('fraction of molecules', 6, top - 8, '#94a3b8', 11);
-          function xo(e) { return l + w * e / 200; }
-          g.fillStyle = 'rgba(249,115,22,.45)'; g.beginPath(); g.moveTo(xo(P.Ea), b); for (E = P.Ea; E <= 200; E += 1) g.lineTo(xo(E), b - h * dist(E, P.T) / mx * 0.95); g.lineTo(xo(200), b); g.closePath(); g.fill();
-          g.strokeStyle = '#38bdf8'; g.lineWidth = 3; g.beginPath(); for (E = 0; E <= 200; E += 1) { var Y = b - h * dist(E, P.T) / mx * 0.95; if (E) g.lineTo(xo(E), Y); else g.moveTo(xo(E), Y); } g.stroke(); g.lineWidth = 1;
-          g.strokeStyle = '#475569'; g.beginPath(); for (E = 0; E <= 200; E += 1) { var Y2 = b - h * dist(E, 300) / mx * 0.95; if (E) g.lineTo(xo(E), Y2); else g.moveTo(xo(E), Y2); } g.stroke(); txt('grey curve = 300 K', l + w - 110, top + 14, '#64748b', 10);
-          g.setLineDash([4, 4]); g.strokeStyle = '#f97316'; g.beginPath(); g.moveTo(xo(P.Ea), top); g.lineTo(xo(P.Ea), b); g.stroke(); g.setLineDash([]); txt('Ea', xo(P.Ea) + 4, top + 10, '#fdba74', 11);
-          var f1 = frac(P.T, P.Ea), f2 = frac(P.T + 10, P.Ea);
-          txt('Fraction with E ≥ Ea = ' + (f1 * 100).toExponential(2) + ' %   (k/A = ' + Math.exp(-P.Ea * 1000 / (R * P.T)).toExponential(2) + ')', 12, 18, '#e2e8f0', 12);
-          txt('Raising T by 10 K multiplies the rate by about ' + (f2 / f1).toFixed(2) + '×', 12, 36, '#94a3b8', 12);
-        }
-      });
-    }
-  });
-  SIM_LIB.push({
-    key: 'vsepr', title: '3D · Shapes of molecules (VSEPR)', d3: true, re: /vsepr|shape of molecule|molecular geometry|tetrahedral|trigonal|octahedral|\bbent\b|bond angle|lone pair|hybridi[sz]ation|methane|water molecule|bf3|sf6|pcl5/,
-    desc: 'rotating 3D molecules: linear, trigonal planar, bent, tetrahedral, trigonal bipyramidal, octahedral (drag to rotate)', note: 'Electron pairs around the central atom repel and spread as far apart as possible. Lone pairs repel more than bond pairs, so H₂O (bent, 104.5°) is squeezed from the tetrahedral 109.5°. Drag to rotate the molecule.',
-    fn: function () {
-      sl('s', 'Shape (1 to 6)', 1, 6, 4, 1); sl('spin', 'Auto-rotate', 0, 2, 0.5, 0.1);
-      var s3 = Math.sqrt(3) / 3, c52 = Math.cos(52.25 * Math.PI / 180), s52 = Math.sin(52.25 * Math.PI / 180);
-      var SH = [
-        { n: 'Linear (sp)', ex: 'BeCl2, CO2, C2H2', ang: '180°', L: [[1, 0, 0], [-1, 0, 0]], lp: [] },
-        { n: 'Trigonal planar (sp²)', ex: 'BF3, BCl3', ang: '120°', L: [[1, 0, 0], [-0.5, 0, 0.866], [-0.5, 0, -0.866]], lp: [] },
-        { n: 'Bent / V-shaped (sp³, 2 lone pairs)', ex: 'H2O', ang: '104.5°', L: [[s52, -c52, 0], [-s52, -c52, 0]], lp: [[0, 0.55, 0.75], [0, 0.55, -0.75]] },
-        { n: 'Tetrahedral (sp³)', ex: 'CH4, CCl4, NH4+', ang: '109.5°', L: [[s3, s3, s3], [s3, -s3, -s3], [-s3, s3, -s3], [-s3, -s3, s3]], lp: [] },
-        { n: 'Trigonal bipyramidal (sp³d)', ex: 'PCl5', ang: '90° and 120°', L: [[0, 1, 0], [0, -1, 0], [1, 0, 0], [-0.5, 0, 0.866], [-0.5, 0, -0.866]], lp: [] },
-        { n: 'Octahedral (sp³d²)', ex: 'SF6', ang: '90°', L: [[1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0], [0, 0, 1], [0, 0, -1]], lp: [] }
-      ];
+      sl('BP', 'Bond pairs', 2, 6, 4, 1); sl('LP', 'Lone pairs', 0, 4, 0, 1); sl('spin', 'Auto-rotate', 0, 2, 0.5, 0.1);
+      var s3 = Math.sqrt(3) / 3, c = 0.866;
+      var DIR = {
+        2: [[1, 0, 0], [-1, 0, 0]], 3: [[1, 0, 0], [-0.5, 0, c], [-0.5, 0, -c]], 4: [[s3, s3, s3], [s3, -s3, -s3], [-s3, s3, -s3], [-s3, -s3, s3]],
+        5: [[1, 0, 0], [-0.5, 0, c], [-0.5, 0, -c], [0, 1, 0], [0, -1, 0]], 6: [[1, 0, 0], [-1, 0, 0], [0, 0, 1], [0, 0, -1], [0, 1, 0], [0, -1, 0]]
+      };
+      var LPI = { 3: [2], 4: [3, 2], 5: [0, 1, 2], 6: [5, 4, 3, 2] };
+      var T = {
+        '20': ['Linear', '180°', 'BeCl₂, CO₂, C₂H₂'], '21': ['Bent (V-shaped)', '≈119°', 'SO₂, O₃'], '22': ['Bent (V-shaped)', '104.5°', 'H₂O, H₂S'], '23': ['Linear', '180°', 'XeF₂, I₃⁻'], '24': ['Linear', '180°', '(SN 6 – hypothetical)'],
+        '30': ['Trigonal planar', '120°', 'BF₃, BCl₃, SO₃'], '31': ['Trigonal pyramidal', '107°', 'NH₃, PCl₃'], '32': ['T-shaped', '≈87.5°', 'ClF₃, BrF₃'], '33': ['T-shaped', '90°', '(SN 6 – rare)'],
+        '40': ['Tetrahedral', '109.5°', 'CH₄, CCl₄, NH₄⁺'], '41': ['See-saw', '≈173° axial, ≈102° eq.', 'SF₄, IF₄⁺'], '42': ['Square planar', '90°', 'XeF₄, [ICl₄]⁻'],
+        '50': ['Trigonal bipyramidal', '90° and 120°', 'PCl₅, PF₅'], '51': ['Square pyramidal', '≈85°–90°', 'BrF₅, ClF₅'], '60': ['Octahedral', '90°', 'SF₆, [Fe(CN)₆]³⁻']
+      };
+      function norm(v) { var n = Math.hypot(v[0], v[1], v[2]) || 1; return [v[0] / n, v[1] / n, v[2] / n]; }
       play({
         step: function (dt) { yaw += dt * P.spin; },
         draw: function () {
-          var m = SH[Math.round(P.s) - 1], c = pr(0, 0, 0), items = [];
-          m.L.forEach(function (v) { items.push({ p: pr(v[0] * 0.8, v[1] * 0.8, v[2] * 0.8), t: 'a' }); });
-          m.lp.forEach(function (v) { items.push({ p: pr(v[0] * 0.7, v[1] * 0.7, v[2] * 0.7), t: 'l' }); });
-          items.push({ p: c, t: 'c' }); items.sort(function (a, b) { return b.p[2] - a.p[2]; });
+          var bp = Math.round(P.BP), lp = Math.round(P.LP), sn = bp + lp;
+          if (sn > 6) { lp = 6 - bp; sn = 6; }
+          var info = T[bp + '' + lp] || ['Not stable', '–', '–'], dirs = DIR[sn], lpi = LPI[sn] || [], i, items = [], lpv = [0, 0, 0], k = 0;
+          var cp = pr(0, 0, 0);
+          lpi.slice(0, lp).forEach(function (ix) { lpv[0] += dirs[ix][0]; lpv[1] += dirs[ix][1]; lpv[2] += dirs[ix][2]; });
+          dirs.forEach(function (d, ix) {
+            var isLP = lpi.slice(0, lp).indexOf(ix) > -1, v = d;
+            if (!isLP && lp > 0) { var ln2 = norm(lpv); v = norm([d[0] - 0.16 * lp * ln2[0], d[1] - 0.16 * lp * ln2[1], d[2] - 0.16 * lp * ln2[2]]); }
+            items.push({ p: pr(v[0] * 0.9, v[1] * 0.9, v[2] * 0.9), lp: isLP });
+          });
+          items.push({ p: cp, c: true }); items.sort(function (a, b) { return b.p[2] - a.p[2]; });
           items.forEach(function (it) {
             var p = it.p;
-            if (it.t === 'a') { g.strokeStyle = '#94a3b8'; g.lineWidth = 4 * p[3]; g.beginPath(); g.moveTo(c[0], c[1]); g.lineTo(p[0], p[1]); g.stroke(); g.fillStyle = '#38bdf8'; g.beginPath(); g.arc(p[0], p[1], 15 * p[3], 0, 7); g.fill(); }
-            else if (it.t === 'l') { g.fillStyle = 'rgba(251,191,36,.45)'; g.beginPath(); g.ellipse(p[0], p[1], 20 * p[3], 12 * p[3], 0, 0, 7); g.fill(); g.strokeStyle = '#fbbf24'; g.stroke(); }
-            else { g.fillStyle = '#f97316'; g.beginPath(); g.arc(p[0], p[1], 20 * p[3], 0, 7); g.fill(); }
-          }); g.lineWidth = 1;
-          txt(m.n, 12, 20, '#e2e8f0', 14); txt('Bond angle: ' + m.ang + '   |   Examples: ' + m.ex, 12, 38, '#94a3b8', 12);
-          txt('orange = central atom, blue = bonded atoms' + (m.lp.length ? ', yellow = lone pairs' : ''), 12, H - 28, '#94a3b8', 11); txt('drag to rotate 3D view', 12, H - 10, '#94a3b8', 11);
+            if (it.c) { dot(p[0], p[1], 19 * p[3], '#f97316', '#fdba74'); return; }
+            ln(cp[0], cp[1], p[0], p[1], it.lp ? 'rgba(251,191,36,.5)' : '#94a3b8', it.lp ? 2 : 4 * p[3]);
+            if (it.lp) { g.fillStyle = 'rgba(251,191,36,.40)'; g.beginPath(); g.ellipse(p[0], p[1], 22 * p[3], 13 * p[3], Math.atan2(p[1] - cp[1], p[0] - cp[0]), 0, 7); g.fill(); g.strokeStyle = '#fbbf24'; g.stroke(); txt('LP', p[0] - 7, p[1] + 3, '#fff', 9); }
+            else dot(p[0], p[1], 14 * p[3], '#38bdf8', '#bae6fd');
+          });
+          txt(info[0], 12, 20, '#e2e8f0', 15); txt('Bond angle: ' + info[1], 12, 38, '#fbbf24', 12); txt('e.g. ' + info[2], 12, 54, '#94a3b8', 11);
+          txt('AX' + bp + (lp ? 'E' + lp : '') + '   steric number = ' + bp + ' + ' + lp + ' = ' + sn, 12, H - 26, '#e2e8f0', 12); txt('blue = bonded atoms, yellow = lone pairs, drag to rotate', 12, H - 8, '#94a3b8', 10);
+          if (P.BP !== bp || P.LP !== lp) txt('(steric number limited to 6)', W - 150, 20, '#f87171', 10);
         }
       });
     }
   });
-
+  SIM_LIB.push({
+    key: 'lechatelier', title: "2D · Le Chatelier's principle (N₂ + 3H₂ ⇌ 2NH₃)", re: /le ?chatelier|shift(s)? (the )?equilibrium|equilibrium shift|haber|n2\s*\+\s*3h2|reversible reaction|dynamic equilibrium|effect of (temperature|pressure|concentration)/,
+    desc: 'reactor with N2, H2, NH3: change concentration, temperature (exothermic) and volume/pressure and watch the equilibrium shift on a live concentration-time chart', note: 'N₂ + 3H₂ ⇌ 2NH₃, ΔH = −92 kJ (exothermic). More reactant or less product → shifts right. Higher pressure (smaller volume) → fewer gas moles (right). Higher temperature → shifts left (K decreases). A catalyst would not shift it.',
+    fn: function () {
+      sl('A', 'Set N₂ amount', 0.2, 2, 1, 0.05); sl('B', 'Set H₂ amount', 0.6, 6, 3, 0.1); sl('C', 'Set NH₃ amount', 0, 3, 0, 0.05); sl('T', 'Temperature', 400, 800, 500, 10, ' K'); sl('V', 'Volume (1/pressure)', 0.5, 2, 1, 0.05, ' L');
+      var n1, n2, n3, hist, ts, parts = [], lastS = -1, mark = [];
+      function K() { return 0.2 * Math.exp(92000 / 8.314 * (1 / P.T - 1 / 500)); }
+      function kf() { return 1.2 * Math.exp(0.006 * (P.T - 500)); }
+      function init() { n1 = P.A; n2 = P.B; n3 = P.C; hist = []; ts = 0; mark = []; parts = []; }
+      play({
+        setup: init, reset: init,
+        change: function (k) { if (k === 'A') n1 = P.A; else if (k === 'B') n2 = P.B; else if (k === 'C') n3 = P.C; if (k === 'A' || k === 'B' || k === 'C') mark.push(ts); },
+        step: function (dt) {
+          var s, V = P.V;
+          for (s = 0; s < 20; s++) { var c1 = n1 / V, c2 = n2 / V, c3 = n3 / V, r = kf() * (c1 * c2 * c2 * c2 - c3 * c3 / K()) * (dt / 20); r = clamp(r, -n3 / 2 + 1e-6, Math.min(n1, n2 / 3) - 1e-6); n1 -= r; n2 -= 3 * r; n3 += 2 * r; }
+          ts += dt; if (ts - lastS > 0.1) { lastS = ts; hist.push([n1 / V, n2 / V, n3 / V, ts]); if (hist.length > 200) hist.shift(); }
+          var want = [Math.round(n1 * 7), Math.round(n2 * 7), Math.round(n3 * 7)], sp = [0, 0, 0];
+          for (s = 0; s < 3; s++) { var cur = parts.filter(function (p) { return p.s === s; }).length; while (cur < want[s] && parts.length < 150) { parts.push({ s: s, x: rnd(0, 1), y: rnd(0, 1), a: rnd(0, 6.283) }); cur++; } while (cur > want[s]) { var ix = parts.findIndex(function (p) { return p.s === s; }); if (ix < 0) break; parts.splice(ix, 1); cur--; } }
+          var spd = 0.12 * Math.sqrt(P.T / 500); parts.forEach(function (p) { p.x += Math.cos(p.a) * spd * dt; p.y += Math.sin(p.a) * spd * dt; if (p.x < 0 || p.x > 1) { p.a = Math.PI - p.a; p.x = clamp(p.x, 0, 1); } if (p.y < 0 || p.y > 1) { p.a = -p.a; p.y = clamp(p.y, 0, 1); } });
+        },
+        draw: function () {
+          var V = P.V, rw = W * 0.5, rh = H * 0.34 * (0.75 + 0.25 * V), l = 12, top = 46, Q = Math.pow(n3 / V, 2) / ((n1 / V) * Math.pow(n2 / V, 3) + 1e-9), k = K();
+          rect(l, top, rw, rh, '#0b1220', '#64748b'); var cols = ['#38bdf8', '#e2e8f0', '#fb923c'];
+          parts.forEach(function (p) { dot(l + p.x * rw, top + p.y * rh, p.s === 2 ? 4.5 : (p.s === 1 ? 2.6 : 4), cols[p.s]); });
+          txt('N₂ ' + n1.toFixed(2) + '  H₂ ' + n2.toFixed(2) + '  NH₃ ' + n3.toFixed(2) + ' mol', 12, 16, '#e2e8f0', 12);
+          txt('P ∝ ' + (1 / V).toFixed(2) + ' atm (rel.)    K = ' + k.toFixed(3) + '    Q = ' + Q.toFixed(3), 12, 33, '#94a3b8', 11);
+          var sx = l + rw + 24, sy = top + 36, tilt = clamp(Math.log((Q + 1e-6) / k) / 3, -1, 1) * 0.35;
+          ln(sx - 6, sy + 60, sx + 6, sy + 60, '#94a3b8', 3); ln(sx, sy + 60, sx, sy, '#94a3b8', 3);
+          var ax = Math.cos(tilt) * 52, ay = Math.sin(tilt) * 52; ln(sx - ax, sy - ay, sx + ax, sy + ay, '#e2e8f0', 4);
+          dot(sx - ax, sy - ay + 8, 12, 'rgba(56,189,248,.35)', '#38bdf8'); dot(sx + ax, sy + ay + 8, 12, 'rgba(251,146,60,.35)', '#fb923c'); txt('R', sx - ax - 3, sy - ay + 11, '#fff', 10); txt('P', sx + ax - 3, sy + ay + 11, '#fff', 10);
+          var dir = Math.abs(Math.log((Q + 1e-6) / k)) < 0.04 ? 'At equilibrium (Q ≈ K)' : (Q < k ? 'Q < K : shifts FORWARD →' : 'Q > K : shifts BACKWARD ←'); txt(dir, sx - 52, sy + 84, Q < k ? '#4ade80' : '#f87171', 11);
+          var gl = 38, gt = top + rh + 36, gw = W - gl - 12, gh = H - gt - 22, mx = 0.5; hist.forEach(function (h) { mx = Math.max(mx, h[0], h[1], h[2]); });
+          var o = G(gl, gt, gw, gh, 0, 1, 0, mx * 1.1, 'time', 'conc. (mol/L)'), t0 = hist.length ? hist[0][3] : 0, t1 = hist.length ? hist[hist.length - 1][3] : 1, sp = Math.max(1e-6, t1 - t0);
+          [0, 1, 2].forEach(function (s) { g.strokeStyle = cols[s]; g.lineWidth = 2; g.beginPath(); hist.forEach(function (h, i) { var X = o.X((h[3] - t0) / sp), Y = o.Y(h[s]); if (i) g.lineTo(X, Y); else g.moveTo(X, Y); }); g.stroke(); });
+          g.lineWidth = 1; mark.forEach(function (m) { if (m >= t0) ln(o.X((m - t0) / sp), gt, o.X((m - t0) / sp), gt + gh, '#f87171'); }); txt('N₂', gl + 4, gt + 11, cols[0], 10); txt('H₂', gl + 24, gt + 11, cols[1], 10); txt('NH₃', gl + 44, gt + 11, cols[2], 10);
+        }
+      });
+    }
+  });
+  SIM_LIB.push({
+    key: 'titration', title: '2D · Acid-base titration, pH and indicators', re: /titration|burette|neutrali[sz]ation|equivalence point|end ?point|indicator|phenolphthalein|methyl orange|buffer region|half.?equivalence|ph (curve|scale)/,
+    desc: 'burette dripping NaOH into acid with indicator colour change and a live pH titration curve (strong or weak acid)', note: 'At equivalence moles of acid = moles of base. Strong acid: sharp jump at pH 7. Weak acid: equivalence above 7 and a buffer region around pKa (at half-equivalence pH = pKa). Choose an indicator whose colour-change range falls on the steep part of the curve.',
+    fn: function () {
+      sl('Ca', 'Acid concentration (25 mL)', 0.05, 0.5, 0.1, 0.01, ' M'); sl('Cb', 'NaOH concentration', 0.05, 0.5, 0.1, 0.01, ' M'); sl('pKa', 'Acid strength: pKa (0 = strong)', 0, 9, 0, 0.1); sl('Ind', 'Indicator (1 Phenolphthalein, 2 Methyl orange, 3 Bromothymol blue)', 1, 3, 1, 1);
+      sl('Vb', 'Volume of base added', 0, 60, 0, 0.5, ' mL'); sl('Auto', 'Auto burette (0 off, 1 on)', 0, 1, 1, 1);
+      var Va = 25, vauto = 0;
+      function pH(Vb) { var Ct = P.Ca * Va / (Va + Vb), Na = P.Cb * Vb / (Va + Vb), Ka = P.pKa < 0.05 ? 1e6 : Math.pow(10, -P.pKa), lo = 0, hi = 14, i; for (i = 0; i < 50; i++) { var mid = (lo + hi) / 2, h = Math.pow(10, -mid), oh = Math.pow(10, mid - 14), f = h + Na - Ct * Ka / (Ka + h) - oh; if (f > 0) lo = mid; else hi = mid; } return (lo + hi) / 2; }
+      function indCol(ph) {
+        var i = Math.round(P.Ind), f;
+        if (i === 1) { f = clamp((ph - 8.2) / 1.8, 0, 1); return 'rgba(' + Math.round(226 + 18 * f) + ',' + Math.round(232 - 118 * f) + ',' + Math.round(240 - 56 * f) + ',' + (0.35 + 0.55 * f).toFixed(2) + ')'; }
+        if (i === 2) { f = clamp((ph - 3.1) / 1.3, 0, 1); return 'rgb(' + Math.round(239 - 0 * f) + ',' + Math.round(68 + 130 * f) + ',' + Math.round(68 - 20 * f) + ')'; }
+        f = clamp((ph - 6) / 1.6, 0, 1); return f < 0.5 ? 'rgb(' + Math.round(250 - 190 * f * 2) + ',' + Math.round(204 + 0 * f) + ',' + Math.round(21 + 100 * f * 2) + ')' : 'rgb(' + Math.round(60 - 0 * f) + ',' + Math.round(204 - 110 * (f - 0.5) * 2) + ',' + Math.round(121 + 110 * (f - 0.5) * 2) + ')';
+      }
+      var RNG = [[8.2, 10, 'Phenolphthalein 8.2–10'], [3.1, 4.4, 'Methyl orange 3.1–4.4'], [6, 7.6, 'Bromothymol blue 6–7.6']];
+      play({
+        reset: function () { vauto = 0; },
+        step: function (dt) { if (P.Auto >= 1) { vauto += dt * 3.2; if (vauto > 60) vauto = 0; } },
+        draw: function (t) {
+          var Vb = P.Auto >= 1 ? vauto : P.Vb, ph = pH(Vb), Veq = P.Ca * Va / P.Cb, xmax = Math.max(40, Veq * 2), top = 40, i;
+          var bx = 26, bh = 130; rect(bx - 6, top, 12, bh, 'rgba(147,197,253,.12)', '#93c5fd'); var lv = (1 - Vb / 60) * bh; rect(bx - 5, top + bh - lv, 10, lv, 'rgba(244,114,182,.55)'); ln(bx, top + bh, bx, top + bh + 14, '#93c5fd', 2); txt('burette', bx - 14, top - 5, '#93c5fd', 9);
+          if (Vb < 59.5 && P.Auto >= 1) { dot(bx, top + bh + 20 + ((t * 40) % 24), 2.4, '#f472b6'); }
+          var fx = bx + 40, fy = top + bh + 24; g.fillStyle = indCol(ph); g.beginPath(); g.moveTo(bx - 12, fy + 40); g.lineTo(bx - 28, fy + 80); g.lineTo(bx + 28, fy + 80); g.lineTo(bx + 12, fy + 40); g.closePath(); g.fill(); g.strokeStyle = '#cbd5e1'; g.beginPath(); g.moveTo(bx - 8, fy + 12); g.lineTo(bx - 8, fy + 40); g.lineTo(bx - 30, fy + 82); g.lineTo(bx + 30, fy + 82); g.lineTo(bx + 8, fy + 40); g.lineTo(bx + 8, fy + 12); g.stroke(); txt('flask', bx - 12, fy + 96, '#94a3b8', 9);
+          txt('V = ' + Vb.toFixed(1) + ' mL', 10, 16, '#e2e8f0', 13); txt('pH = ' + ph.toFixed(2), 100, 16, '#fbbf24', 13); txt('Equivalence at ' + Veq.toFixed(1) + ' mL' + (P.pKa < 0.05 ? ' (strong acid)' : ' (weak acid, pKa ' + P.pKa.toFixed(1) + ')'), 10, 32, '#94a3b8', 11);
+          var gl = 96, gt = 48, gw = W - gl - 12, gh = H - gt - 50, o = G(gl, gt, gw, gh, 0, xmax, 0, 14, 'mL of NaOH →', 'pH'), r = RNG[Math.round(P.Ind) - 1];
+          g.fillStyle = 'rgba(244,114,182,.15)'; g.fillRect(gl, o.Y(r[1]), gw, o.Y(r[0]) - o.Y(r[1])); txt(r[2], gl + 4, o.Y(r[1]) + 11, '#f9a8d4', 9);
+          if (P.pKa >= 0.05) { g.fillStyle = 'rgba(56,189,248,.12)'; g.fillRect(o.X(Veq / 2 * 0.1), o.Y(P.pKa + 1), o.X(Veq * 0.9) - o.X(Veq / 2 * 0.1), o.Y(P.pKa - 1) - o.Y(P.pKa + 1)); txt('buffer', o.X(Veq * 0.3), o.Y(P.pKa) + 3, '#7dd3fc', 9); }
+          for (i = 0; i <= 14; i += 2) txt('' + i, gl - 14, o.Y(i) + 3, '#64748b', 9);
+          g.setLineDash([4, 4]); ln(o.X(Veq), gt, o.X(Veq), gt + gh, '#475569'); g.setLineDash([]); txt('equivalence', o.X(Veq) + 3, gt + 24, '#94a3b8', 9);
+          CV(o, pH, 0, xmax, '#a78bfa', 3); dot(o.X(Vb), o.Y(ph), 6, '#f97316');
+          txt('half-equivalence: pH = pKa' + (P.pKa < 0.05 ? ' (n/a for strong acid)' : ' = ' + P.pKa.toFixed(1)), gl, H - 16, '#94a3b8', 10);
+        }
+      });
+    }
+  });
+  SIM_LIB.push({
+    key: 'daniell', title: '2D · Daniell cell (Zn | Cu galvanic cell) and Nernst EMF', re: /daniell|galvanic|voltaic|electrochemical cell|salt bridge|nernst|cell (emf|potential)|electrode potential|zn.{0,6}cu.{0,6}cell/,
+    desc: 'Zn/Cu galvanic cell with salt bridge, electron and ion flow, multimeter reading EMF from the Nernst equation as ion concentrations change', note: 'Zn → Zn²⁺ + 2e⁻ (anode, oxidation); Cu²⁺ + 2e⁻ → Cu (cathode, reduction). E°cell = 0.34 − (−0.76) = 1.10 V. Nernst: E = E° − (0.0592/2)·log([Zn²⁺]/[Cu²⁺]). Electrons flow Zn → Cu through the wire; the salt bridge keeps both half-cells neutral.',
+    fn: function () {
+      sl('Zn', '[Zn²⁺]', 0.01, 2, 1, 0.01, ' M'); sl('Cu', '[Cu²⁺]', 0.01, 2, 1, 0.01, ' M'); sl('R', 'Circuit (0 open, 1 closed)', 0, 1, 1, 1);
+      var el = [], ions = [], used = 0;
+      function E() { return 1.10 - (0.0592 / 2) * Math.log(P.Zn / P.Cu) / Math.LN10; }
+      function rst() { used = 0; el = []; ions = []; for (var i = 0; i < 10; i++) el.push(i / 10); for (i = 0; i < 12; i++) ions.push({ s: i % 2, u: i / 12 }); }
+      play({
+        setup: rst, reset: rst,
+        step: function (dt) {
+          if (P.R >= 1 && E() > 0) { var sp = 0.25 * clamp(E() / 1.1, 0, 1.6); el.forEach(function (e, i) { el[i] = (e + dt * sp) % 1; }); ions.forEach(function (o) { o.u = (o.u + dt * sp * 0.6) % 1; }); used = clamp(used + dt * 0.0006 * E(), 0, 1); }
+        },
+        draw: function (t) {
+          var by = 150, bh = 110, bw = W * 0.34, lx = 14, rx = W - 14 - bw, e = E(), on = P.R >= 1 && e > 0;
+          rect(lx, by, bw, bh, 'rgba(148,163,184,.25)', '#94a3b8'); rect(rx, by, bw, bh, 'rgba(56,189,248,.22)', '#94a3b8');
+          var zh = bh * 0.7 * (1 - used * 0.5), ch = bh * 0.55 * (1 + used * 0.3); rect(lx + bw * 0.4, by + bh - zh - 14, 14, zh + 40, '#9ca3af', '#e5e7eb'); rect(rx + bw * 0.4, by + bh - ch - 14, 14, ch + 40, '#c2410c', '#fdba74');
+          txt('Zn (anode −)', lx + 2, by + bh + 14, '#e2e8f0', 10); txt('Cu (cathode +)', rx - 4, by + bh + 14, '#fdba74', 10); txt('ZnSO₄ ' + P.Zn.toFixed(2) + ' M', lx + 2, by + bh - 4, '#cbd5e1', 10); txt('CuSO₄ ' + P.Cu.toFixed(2) + ' M', rx + 2, by + bh - 4, '#7dd3fc', 10);
+          var sx0 = lx + bw * 0.78, sx1 = rx + bw * 0.22; g.strokeStyle = '#fde68a'; g.lineWidth = 8; g.beginPath(); g.moveTo(sx0, by + bh * 0.55); g.lineTo(sx0, by + 22); g.lineTo(sx1, by + 22); g.lineTo(sx1, by + bh * 0.55); g.stroke(); g.lineWidth = 1; txt('salt bridge (KNO₃)', (sx0 + sx1) / 2 - 42, by + 14, '#fde68a', 10);
+          if (on) {
+            ions.forEach(function (o) { var x, y; if (o.s === 0) { x = sx0 + (sx1 - sx0) * o.u; y = by + 22 + 0; if (o.u < 0.1) y = by + 22 + (0.1 - o.u) * 0; } else { x = sx1 - (sx1 - sx0) * o.u; y = by + 22; } dot(x, y, 3, o.s ? '#f87171' : '#4ade80'); });
+            txt('K⁺ →', (sx0 + sx1) / 2 - 10, by + 36, '#4ade80', 9); txt('← NO₃⁻', (sx0 + sx1) / 2 - 10, by + 48, '#f87171', 9);
+            for (var i = 0; i < 5; i++) { dot(lx + bw * 0.4 + 7 + ((t * 8 + i * 9) % 12) - 6, by + bh * 0.4 + (i % 3) * 10, 2.5, '#38bdf8'); }
+          }
+          var wy = 74, x0 = lx + bw * 0.4 + 7, x1 = rx + bw * 0.4 + 7; ln(x0, by - 14, x0, wy, '#94a3b8', 2); ln(x1, by - 14, x1, wy, '#94a3b8', 2); ln(x0, wy, W / 2 - 38, wy, '#94a3b8', 2); ln(x1, wy, W / 2 + 38, wy, '#94a3b8', 2);
+          if (P.R < 1) { ln(W / 2 + 38, wy, W / 2 + 14, wy - 14, '#f87171', 2); }
+          rect(W / 2 - 38, wy - 22, 76, 44, '#0b1220', '#64748b'); txt(on ? e.toFixed(3) + ' V' : '0.000 V', W / 2 - 28, wy + 6, on ? '#4ade80' : '#94a3b8', 14); txt('multimeter', W / 2 - 26, wy - 27, '#94a3b8', 9);
+          if (on) el.forEach(function (u) { var d = u * 2, x, y; var half = (x1 - x0 - 76) / 2; if (d < 1) { x = x0 + (W / 2 - 38 - x0) * d; } else { x = W / 2 + 38 + (x1 - W / 2 - 38) * (d - 1); } if (x > W / 2 - 38 && x < W / 2 + 38) return; dot(x, wy, 3, '#38bdf8'); }); 
+          if (on) txt('e⁻ flow Zn → Cu', W / 2 - 38, wy - 38, '#38bdf8', 10);
+          txt('E°cell = 1.10 V    Q = [Zn²⁺]/[Cu²⁺] = ' + (P.Zn / P.Cu).toFixed(2), 10, 16, '#e2e8f0', 12); txt('E = 1.10 − 0.0296·log Q = ' + e.toFixed(3) + ' V', 10, 32, '#fbbf24', 12); txt(Math.abs(P.Zn / P.Cu - 1) < 0.01 ? 'Standard conditions (Q = 1)' : (P.Zn > P.Cu ? 'Q > 1: EMF falls below 1.10 V' : 'Q < 1: EMF rises above 1.10 V'), 10, 48, '#94a3b8', 11);
+          var gl = 40, gt = by + bh + 34, gw = W - gl - 14, gh = H - gt - 20, o = G(gl, gt, gw, gh, -2, 2, 0.9, 1.3, 'log([Zn²⁺]/[Cu²⁺])', 'E (V)'); CV(o, function (x) { return 1.10 - 0.0296 * x; }, -2, 2, '#a78bfa', 3); dot(o.X(clamp(Math.log(P.Zn / P.Cu) / Math.LN10, -2, 2)), o.Y(e), 5, '#f97316');
+        }
+      });
+    }
+  });
+  SIM_LIB.push({
+    key: 'kinetics', title: '2D · Chemical kinetics: zero, first and second order', re: /chemical kinetics|order of (a )?reaction|rate (law|constant|equation)|half.?life|zero.?order|first.?order|second.?order|pseudo.?first|integrated rate/,
+    desc: 'concentration-time and rate-concentration graphs for zero, first and second order reactions with k, [A]0 sliders and half-life readout', note: 'Zero: [A] = [A]₀ − kt, t½ = [A]₀/2k. First: ln[A] = ln[A]₀ − kt, t½ = 0.693/k (independent of [A]₀). Second: 1/[A] = 1/[A]₀ + kt, t½ = 1/(k[A]₀). Rate = k[A]ⁿ.',
+    fn: function () {
+      sl('n', 'Order (0, 1, 2)', 0, 2, 1, 1); sl('k', 'Rate constant k', 0.01, 0.5, 0.1, 0.01); sl('A0', 'Initial [A]₀', 0.2, 2, 1, 0.05, ' M'); sl('spd', 'Speed', 0.5, 4, 1.5, 0.1, '×');
+      var t = 0;
+      function A(tt) { var n = Math.round(P.n); if (n === 0) return Math.max(0, P.A0 - P.k * tt); if (n === 1) return P.A0 * Math.exp(-P.k * tt); return P.A0 / (1 + P.k * P.A0 * tt); }
+      function t12() { var n = Math.round(P.n); return n === 0 ? P.A0 / (2 * P.k) : (n === 1 ? Math.LN2 / P.k : 1 / (P.k * P.A0)); }
+      var mols = [];
+      function rst() { t = 0; mols = []; for (var i = 0; i < 60; i++) mols.push({ x: rnd(0, 1), y: rnd(0, 1), a: rnd(0, 6.283), u: Math.random() }); }
+      play({
+        setup: rst, reset: rst,
+        change: function () { t = 0; },
+        step: function (dt) { t += dt * P.spd; var tmax = t12() * 5; if (t > tmax) t = 0; mols.forEach(function (m) { m.x += Math.cos(m.a) * 0.15 * dt; m.y += Math.sin(m.a) * 0.15 * dt; if (m.x < 0 || m.x > 1) { m.a = Math.PI - m.a; m.x = clamp(m.x, 0, 1); } if (m.y < 0 || m.y > 1) { m.a = -m.a; m.y = clamp(m.y, 0, 1); } }); },
+        draw: function () {
+          var n = Math.round(P.n), a = A(t), frac = a / P.A0, tmax = t12() * 5, bw = W * 0.4, bh = 90, l = 12, top = 52;
+          rect(l, top, bw, bh, '#0b1220', '#64748b'); mols.forEach(function (m) { var rem = m.u < frac; dot(l + m.x * bw, top + m.y * bh, 3.4, rem ? '#38bdf8' : '#4ade80'); });
+          txt('blue = A, green = product B', l, top + bh + 12, '#94a3b8', 10);
+          txt('Order n = ' + n + '   Rate = k[A]' + (n ? '^' + n : '⁰ (constant)'), 12, 16, '#e2e8f0', 13); txt('[A] = ' + a.toFixed(3) + ' M   rate = ' + (P.k * Math.pow(a, n)).toFixed(4) + ' M/s', 12, 34, '#fbbf24', 12);
+          var sx = l + bw + 14; txt('t = ' + t.toFixed(1) + ' s', sx, top + 14, '#e2e8f0', 12); txt('t½ = ' + t12().toFixed(2) + ' s', sx, top + 34, '#4ade80', 13); txt(n === 1 ? '(independent of [A]₀)' : (n === 0 ? '(∝ [A]₀)' : '(∝ 1/[A]₀)'), sx, top + 50, '#94a3b8', 10);
+          var gh = (H - top - bh - 60) / 2, gl = 36, gw = W / 2 - gl - 6, gt = top + bh + 26, o = G(gl, gt, gw, H - gt - 22, 0, tmax, 0, P.A0 * 1.05, 't', '[A] vs t'); CV(o, A, 0, tmax, '#38bdf8', 3); dot(o.X(t), o.Y(a), 5, '#f97316'); ln(o.X(t12()), o.t, o.X(t12()), o.t + o.h, '#4ade80'); g.setLineDash([3, 3]); ln(o.l, o.Y(P.A0 / 2), o.l + o.w, o.Y(P.A0 / 2), '#4ade80'); g.setLineDash([]);
+          var o2 = G(W / 2 + 26, gt, W / 2 - 40, H - gt - 22, 0, P.A0, 0, P.k * Math.pow(P.A0, n) * 1.05, '[A]', 'rate vs [A]'); CV(o2, function (x) { return P.k * Math.pow(x, n); }, 0, P.A0, '#f472b6', 3); dot(o2.X(a), o2.Y(P.k * Math.pow(a, n)), 5, '#f97316');
+        }
+      });
+    }
+  });
+  SIM_LIB.push({
+    key: 'collision', title: '2D · Collision theory and the Arrhenius equation', re: /collision theory|arrhenius|activation energy|effective collision|orientation (factor|of collision)|threshold energy|rate (and|vs|with) temperature|temperature (effect|dependence)|maxwell.{0,12}boltzmann|energy distribution/,
+    desc: 'molecules colliding with sliders for temperature, activation energy and orientation; Maxwell-Boltzmann curve with Ea shading and Arrhenius ln k vs 1/T plot', note: 'k = A·e^(−Ea/RT). Only collisions with energy ≥ Ea and proper orientation react. Raising T shifts the Maxwell-Boltzmann curve right so more molecules exceed Ea; a 10 K rise roughly doubles the rate. Slope of ln k vs 1/T = −Ea/R.',
+    fn: function () {
+      sl('T', 'Temperature', 250, 600, 350, 5, ' K'); sl('Ea', 'Activation energy', 20, 120, 60, 1, ' kJ/mol'); sl('O', 'Orientation (steric) factor', 0.1, 1, 0.5, 0.05);
+      var ps = [], eff = 0, tot = 0, rate = 0, w = 0, fl = [];
+      function frac(T, Ea) { return Math.exp(-Ea * 1000 / (8.314 * T)); }
+      function rst() { ps = []; eff = 0; tot = 0; fl = []; for (var i = 0; i < 26; i++) ps.push({ x: rnd(0.05, 0.95), y: rnd(0.05, 0.95), a: rnd(0, 6.283), e: -Math.log(Math.random()) * 0.5 }); }
+      play({
+        setup: rst, reset: rst,
+        step: function (dt) {
+          var sp = 0.3 * Math.sqrt(P.T / 300), i, j;
+          ps.forEach(function (p) { p.x += Math.cos(p.a) * sp * dt; p.y += Math.sin(p.a) * sp * dt; if (p.x < 0 || p.x > 1) { p.a = Math.PI - p.a; p.x = clamp(p.x, 0, 1); } if (p.y < 0 || p.y > 1) { p.a = -p.a; p.y = clamp(p.y, 0, 1); } });
+          for (i = 0; i < ps.length; i++) for (j = i + 1; j < ps.length; j++) { var a = ps[i], b = ps[j]; if ((a.x - b.x) * (a.x - b.x) + (a.y - b.y) * (a.y - b.y) < 0.0012 && !(a.cd > 0)) { a.cd = 0.4; tot++; var E = (-Math.log(Math.random())) * 8.314 * P.T / 1000; if (E >= P.Ea && Math.random() < P.O) { eff++; fl.push({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2, l: 1 }); } a.a += 2.5; b.a -= 2.5; } }
+          ps.forEach(function (p) { if (p.cd > 0) p.cd -= dt; }); fl.forEach(function (f) { f.l -= dt * 1.5; }); fl = fl.filter(function (f) { return f.l > 0; });
+        },
+        draw: function () {
+          var bw = W * 0.46, bh = 100, l = 12, top = 48, R = 8.314, k = P.O * frac(P.T, P.Ea);
+          rect(l, top, bw, bh, '#0b1220', '#64748b'); ps.forEach(function (p) { dot(l + p.x * bw, top + p.y * bh, 4, '#38bdf8'); }); fl.forEach(function (f) { dot(l + f.x * bw, top + f.y * bh, 6 + 10 * (1 - f.l), 'rgba(250,204,21,' + f.l.toFixed(2) + ')'); });
+          txt('T = ' + P.T + ' K   Ea = ' + P.Ea + ' kJ/mol   p = ' + P.O.toFixed(2), 12, 16, '#e2e8f0', 12); txt('Fraction with E ≥ Ea: ' + (frac(P.T, P.Ea) * 100).toExponential(2) + ' %', 12, 32, '#fbbf24', 12);
+          var sx = l + bw + 12; txt('collisions ' + tot, sx, top + 14, '#e2e8f0', 11); txt('effective ' + eff, sx, top + 32, '#4ade80', 12); txt('rate ∝ ' + (k * 1e6).toExponential(2), sx, top + 52, '#fbbf24', 10); txt('vs 10 K lower: ×' + (k / (P.O * frac(P.T - 10, P.Ea))).toFixed(2), sx, top + 70, '#94a3b8', 10);
+          var gt = top + bh + 24, gh = (H - gt - 24), gl = 12, gw = W / 2 - 24, o = G(gl, gt, gw, gh, 0, 6, 0, 1, 'Energy', 'MB distribution'); var kT = R * P.T / 1000; function MB(E) { return E / (kT * kT) * Math.exp(-E / kT); } var mxv = 0, e; for (e = 0; e < 8; e += 0.1) mxv = Math.max(mxv, MB(e));
+          var Emax = 6 * 8.314 * 600 / 1000 / 6 * 1; var xs = 30 * kT; o = G(gl, gt, gw, gh, 0, 160, 0, 1, 'E (kJ/mol)', 'molecules'); mxv = 0; for (e = 0; e < 160; e += 1) mxv = Math.max(mxv, MB(e));
+          var fy = function (E) { return MB(E) / mxv * 0.95; }; g.fillStyle = 'rgba(74,222,128,.35)'; g.beginPath(); g.moveTo(o.X(P.Ea), o.Y(0)); for (e = P.Ea; e <= 160; e += 2) g.lineTo(o.X(e), o.Y(fy(e))); g.lineTo(o.X(160), o.Y(0)); g.fill(); CV(o, fy, 0, 160, '#38bdf8', 2); ln(o.X(P.Ea), gt, o.X(P.Ea), gt + gh, '#f87171'); txt('Ea', o.X(P.Ea) + 2, gt + 10, '#f87171', 10);
+          var ix = W / 2 + 22, o2 = G(ix, gt, W - ix - 12, gh, 1.6, 4, -2, 14, '1000/T', 'ln k'); function lnk(x) { return Math.log(P.O * 1e13) - P.Ea * 1000 / R * x / 1000; } o2 = o2; CV(o2, lnk, 1.6, 4, '#a78bfa', 3); dot(o2.X(1000 / P.T), o2.Y(lnk(1000 / P.T)), 5, '#f97316'); txt('slope = −Ea/R = ' + (-P.Ea * 1000 / R).toFixed(0) + ' K', ix + 2, gt + gh - 6, '#94a3b8', 9);
+        }
+      });
+    }
+  });
+  SIM_LIB.push({
+    key: 'lattice', title: '3D · Crystal lattices: SCC, BCC, FCC (unit cells)', d3: true, re: /crystal lattice|unit cell|simple cubic|\bbcc\b|\bfcc\b|body.?centred|face.?centred|packing (efficiency|fraction)|coordination number|cubic (close|lattice)|solid state/,
+    desc: 'rotating 3D unit cell of simple cubic, BCC or FCC with atom fractions, atoms per cell, coordination number and packing efficiency', note: 'SCC: z = 1, CN = 6, packing 52.4%, a = 2r. BCC: z = 2, CN = 8, packing 68%, √3a = 4r. FCC: z = 4, CN = 12, packing 74%, √2a = 4r. Corner atom contributes 1/8, face atom 1/2, body atom 1.',
+    fn: function () {
+      sl('L', 'Lattice (1 SCC, 2 BCC, 3 FCC)', 1, 3, 3, 1); sl('Sz', 'Atom size (ball-stick ↔ space-filling)', 0.15, 1, 0.3, 0.01); sl('spin', 'Auto-rotate', 0, 2, 0.4, 0.1);
+      var INFO = [['Simple cubic (SCC)', 1, 6, 52.4, 'a = 2r', 1], ['Body-centred cubic (BCC)', 2, 8, 68, 'a = 4r/√3', Math.sqrt(3) / 2], ['Face-centred cubic (FCC)', 4, 12, 74, 'a = 2√2 r', Math.SQRT1_2 / 1]];
+      function atoms(L) {
+        var a = [], i, j, k; for (i = -1; i <= 1; i += 2) for (j = -1; j <= 1; j += 2) for (k = -1; k <= 1; k += 2) a.push([i, j, k, 'c']);
+        if (L === 2) a.push([0, 0, 0, 'b']);
+        if (L === 3) { [[1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0], [0, 0, 1], [0, 0, -1]].forEach(function (f) { a.push([f[0], f[1], f[2], 'f']); }); }
+        return a;
+      }
+      var EDG = []; (function () { var c = [], i, j; for (i = -1; i <= 1; i += 2) for (j = -1; j <= 1; j += 2) { EDG.push([[-1, i, j], [1, i, j]]); EDG.push([[i, -1, j], [i, 1, j]]); EDG.push([[i, j, -1], [i, j, 1]]); } })();
+      play({
+        step: function (dt) { yaw += dt * P.spin; },
+        draw: function () {
+          var L = Math.round(P.L), inf = INFO[L - 1], S = 0.62, items = [], rmax = L === 1 ? 1 : (L === 2 ? Math.sqrt(3) : Math.SQRT2), rr = P.Sz * (L === 1 ? 1 : (L === 2 ? 1 : 1)) * 0.5, cols = { c: '#38bdf8', b: '#f97316', f: '#4ade80' };
+          var full = L === 1 ? 1 : (L === 2 ? Math.sqrt(3) / 2 : Math.SQRT1_2); var rad = P.Sz * full;
+          EDG.forEach(function (e) { var a = pr(e[0][0] * S, e[0][1] * S, e[0][2] * S), b = pr(e[1][0] * S, e[1][1] * S, e[1][2] * S); items.push({ z: (a[2] + b[2]) / 2 + 0.01, e: [a, b] }); });
+          atoms(L).forEach(function (a) { var p = pr(a[0] * S, a[1] * S, a[2] * S); items.push({ z: p[2], p: p, t: a[3] }); });
+          items.sort(function (a, b) { return b.z - a.z; });
+          items.forEach(function (it) {
+            if (it.e) { ln(it.e[0][0], it.e[0][1], it.e[1][0], it.e[1][1], 'rgba(148,163,184,.55)', 1.2); return; }
+            var r = rad * S * it.p[3] * Math.min(W, H) * 0.36; dot(it.p[0], it.p[1], Math.max(3, r), cols[it.t], 'rgba(255,255,255,.5)'); if (r > 6) dot(it.p[0] - r * 0.3, it.p[1] - r * 0.3, r * 0.25, 'rgba(255,255,255,.35)');
+          });
+          txt(inf[0], 12, 20, '#e2e8f0', 15); txt('Atoms per cell z = ' + inf[1], 12, 38, '#fbbf24', 12); txt('Coordination number = ' + inf[2], 12, 54, '#fbbf24', 12); txt('Packing efficiency = ' + inf[3] + ' %   (' + inf[4] + ')', 12, 70, '#4ade80', 12);
+          var calc = L === 1 ? '8 × 1/8 = 1' : (L === 2 ? '8 × 1/8 + 1 = 2' : '8 × 1/8 + 6 × 1/2 = 4'); txt('z = ' + calc, 12, H - 26, '#e2e8f0', 12); txt('blue = corner (1/8), green = face (1/2), orange = body (1) · drag to rotate', 12, H - 8, '#94a3b8', 10);
+          var vf = 100 * inf[1] * (4 / 3) * Math.PI * Math.pow(full * 0.5, 3) / 1 / Math.pow(L === 1 ? 1 : 1, 3) ; 
+          if (P.Sz >= 0.99) txt('Space-filling', W - 90, 20, '#4ade80', 10);
+        }
+      });
+    }
+  });
+  SIM_LIB.push({
+    key: 'raoult', title: "2D · Raoult's law, ideal and non-ideal solutions", re: /raoult|vapou?r pressure (of|curve|diagram)|ideal solution|non.?ideal|positive deviation|negative deviation|partial pressure of (a )?(component|liquid)|dalton.{0,10}vapou?r/,
+    desc: 'vapour pressure vs mole fraction diagram for A-B mixtures with ideal, positive and negative deviation and sliders for PA°, PB°, xA', note: "Ideal: PA = xA·PA°, PB = xB·PB°, Ptotal = PA + PB (straight line). Positive deviation: A–B attraction weaker than A–A, B–B, so P is higher than ideal (ΔHmix > 0, ΔVmix > 0, e.g. ethanol-water). Negative deviation: stronger A–B attraction, P lower (ΔHmix < 0, e.g. HNO₃-water, acetone-chloroform).",
+    fn: function () {
+      sl('PA', "PA° (pure A)", 20, 200, 120, 1, ' mmHg'); sl('PB', "PB° (pure B)", 20, 200, 60, 1, ' mmHg'); sl('x', 'Mole fraction xA', 0, 1, 0.5, 0.01); sl('D', 'Deviation (−1 negative, 0 ideal, +1 positive)', -1, 1, 0, 0.1);
+      var vap = [];
+      function gam(xa) { var w = 0.9 * P.D; return [Math.exp(w * (1 - xa) * (1 - xa)), Math.exp(w * xa * xa)]; }
+      function pa(xa) { return xa * P.PA * gam(xa)[0]; }
+      function pb(xa) { return (1 - xa) * P.PB * gam(xa)[1]; }
+      function pt(xa) { return pa(xa) + pb(xa); }
+      play({
+        setup: function () { vap = []; }, reset: function () { vap = []; },
+        step: function (dt) { var rate = (pt(P.x) / 200) * 40 * dt; while (vap.length < Math.min(60, pt(P.x) / 3)) vap.push({ x: rnd(0, 1), y: rnd(0, 0.5), s: Math.random() < pa(P.x) / (pt(P.x) + 1e-6) ? 0 : 1, a: rnd(0, 6.283) }); while (vap.length > pt(P.x) / 3) vap.pop(); vap.forEach(function (v) { v.x += Math.cos(v.a) * 0.15 * dt; v.y += Math.sin(v.a) * 0.15 * dt; if (v.x < 0 || v.x > 1) { v.a = Math.PI - v.a; v.x = clamp(v.x, 0, 1); } if (v.y < 0 || v.y > 0.5) { v.a = -v.a; v.y = clamp(v.y, 0, 0.5); } }); },
+        draw: function () {
+          var bw = W * 0.42, bh = 100, l = 12, top = 52, xa = P.x, i;
+          rect(l, top, bw, bh, '#0b1220', '#64748b'); rect(l, top + bh * 0.5, bw, bh * 0.5, 'rgba(148,163,184,.25)');
+          for (i = 0; i < 40; i++) { var px = ((i * 37) % 100) / 100, py = 0.5 + (((i * 53) % 100) / 100) * 0.5, A = (i / 40) < xa; dot(l + px * bw, top + py * bh, 4, A ? '#38bdf8' : '#f97316'); }
+          vap.forEach(function (v) { dot(l + v.x * bw, top + v.y * bh, 3, v.s ? '#fdba74' : '#7dd3fc'); }); txt('vapour', l + 3, top + 12, '#94a3b8', 10); txt('liquid', l + 3, top + bh - 4, '#94a3b8', 10);
+          txt('xA = ' + xa.toFixed(2) + '   xB = ' + (1 - xa).toFixed(2), 12, 16, '#e2e8f0', 12); txt('PA = ' + pa(xa).toFixed(1) + '  PB = ' + pb(xa).toFixed(1) + '  Ptotal = ' + pt(xa).toFixed(1), 12, 34, '#fbbf24', 12);
+          var sx = l + bw + 12, dev = Math.abs(P.D) < 0.05 ? 'Ideal solution' : (P.D > 0 ? 'Positive deviation' : 'Negative deviation'); txt(dev, sx, top + 14, P.D > 0.05 ? '#f87171' : (P.D < -0.05 ? '#60a5fa' : '#4ade80'), 12);
+          txt('ΔHmix ' + (Math.abs(P.D) < 0.05 ? '= 0' : (P.D > 0 ? '> 0' : '< 0')), sx, top + 32, '#e2e8f0', 11); txt('ΔVmix ' + (Math.abs(P.D) < 0.05 ? '= 0' : (P.D > 0 ? '> 0' : '< 0')), sx, top + 48, '#e2e8f0', 11); txt(Math.abs(P.D) < 0.05 ? 'A–B ≈ A–A, B–B' : (P.D > 0 ? 'A–B weaker' : 'A–B stronger'), sx, top + 64, '#94a3b8', 11);
+          var gt = top + bh + 24, gl = 36, gw = W - gl - 12, gh = H - gt - 22, mx = Math.max(P.PA, P.PB) * 1.35, o = G(gl, gt, gw, gh, 0, 1, 0, mx, 'xA →', 'P (mmHg)');
+          CV(o, function (x) { return x * P.PA + (1 - x) * P.PB; }, 0, 1, '#64748b', 1, [4, 4]); CV(o, pa, 0, 1, '#38bdf8', 2); CV(o, pb, 0, 1, '#f97316', 2); CV(o, pt, 0, 1, '#a78bfa', 3); dot(o.X(xa), o.Y(pt(xa)), 5, '#f97316');
+          txt('PA', o.X(0.95), o.Y(pa(0.95)) - 4, '#38bdf8', 10); txt('PB', o.X(0.05), o.Y(pb(0.05)) - 4, '#f97316', 10); txt('Ptotal (dashed = ideal)', gl + 4, gt + 11, '#c4b5fd', 10);
+        }
+      });
+    }
+  });
+  SIM_LIB.push({
+    key: 'sn', title: '2D · SN1 vs SN2 reaction mechanism player', re: /\bsn ?[12]\b|nucleophilic substitution|walden inversion|carbocation|backside attack|inversion of configuration|racemi[sz]ation|substitution mechanism/,
+    desc: 'step-by-step SN1 and SN2 mechanism animation with energy profile, Walden inversion and racemisation', note: 'SN2: one step, backside attack, transition state with partial bonds, inversion of configuration (Walden), rate = k[RX][Nu], favoured by methyl/1° halides and polar aprotic solvents. SN1: two steps, planar carbocation intermediate, racemisation, rate = k[RX], favoured by 3° halides and polar protic solvents.',
+    fn: function () {
+      sl('M', 'Mechanism (1 SN2, 2 SN1)', 1, 2, 1, 1); sl('p', 'Progress (drag, or play)', 0, 1, 0, 0.005); sl('Au', 'Auto-play (0 off, 1 on)', 0, 1, 1, 1);
+      var prog = 0;
+      function en(m, x) { if (m === 1) return 70 * Math.exp(-Math.pow((x - 0.5) / 0.16, 2)) + 30 * (1 - x) * 0 - 20 * x; return 55 * Math.exp(-Math.pow((x - 0.25) / 0.12, 2)) + (x > 0.3 ? 40 * Math.exp(-Math.pow((x - 0.4) / 0.18, 2)) * 0 : 0) + 25 * smooth(x, 0.2, 0.4) * (1 - smooth(x, 0.6, 0.75)) + 38 * Math.exp(-Math.pow((x - 0.7) / 0.1, 2)) - 20 * smooth(x, 0.7, 1); }
+      function smooth(x, a, b) { var t = clamp((x - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); }
+      play({
+        reset: function () { prog = 0; }, change: function (k) { if (k === 'M') prog = 0; if (k === 'p') prog = P.p; },
+        step: function (dt) { if (P.Au >= 1) { prog += dt * 0.09; if (prog > 1.15) prog = 0; } },
+        draw: function () {
+          var m = Math.round(P.M), p = clamp(prog, 0, 1), cx = W / 2, cy = 120, i;
+          function atom(x, y, r, c, l) { dot(x, y, r, c, 'rgba(255,255,255,.4)'); txt(l, x - 4 * l.length * 0.7, y + 4, '#0b1220', 11); }
+          txt(m === 1 ? 'SN2: R–X + Nu⁻ → R–Nu + X⁻ (one step)' : 'SN1: R₃C–X → R₃C⁺ + X⁻ , then + Nu⁻ (two steps)', 10, 16, '#e2e8f0', 12);
+          rect(8, 28, W - 16, 170, '#0b1220', '#334155');
+          if (m === 1) {
+            var nx = cx - 110 + 70 * p * (p < 0.5 ? 1 : 1) + (p > 0.5 ? 0 : 0), lx = cx + 50 + 70 * smooth(p, 0.5, 1), nuX = cx - 130 + 100 * smooth(p, 0, 0.5) + 10 * smooth(p, 0.5, 1), inv = smooth(p, 0.3, 0.7), prod = 0;
+            var cc = cx - 8 + 0; var hs = 1 - 2 * inv; // H's flip from pointing away from nucleophile to toward
+            var ang = [[-1, -0.9], [-0.3, 1.1], [0.9, -0.7]];
+            ang.forEach(function (a, k) { var yy = cy + a[1] * 34, xx = cc + a[0] * 28 * (0.4 + 0.6 * hs) + (1 - hs) * 0 + 24 * (0.3) * (hs < 0 ? 1 : 0) ; xx = cc + (hs * 0.35 + 0.2) * 40 * 0 + a[0] * 28 + hs * 14; ln(cc, cy, xx, yy, '#94a3b8', 2); atom(xx, yy, 9, '#e2e8f0', 'H'); });
+            var nuPos = cc - 95 + 55 * smooth(p, 0, 0.5), lgPos = cc + 52 + 60 * smooth(p, 0.5, 1);
+            var bondNu = smooth(p, 0.3, 0.6); ln(cc, cy, nuPos + 14, cy, 'rgba(56,189,248,' + (0.2 + 0.8 * bondNu).toFixed(2) + ')', 1 + 3 * bondNu); g.setLineDash(p > 0.3 && p < 0.7 ? [4, 3] : []); ln(cc, cy, lgPos - 14, cy, 'rgba(244,114,182,' + (1 - 0.8 * smooth(p, 0.5, 1)).toFixed(2) + ')', 4 - 3 * smooth(p, 0.5, 1)); g.setLineDash([]);
+            atom(cc, cy, 15, '#475569', 'C'); atom(nuPos, cy, 14, '#38bdf8', 'Nu'); atom(lgPos, cy, 14, '#f472b6', 'X');
+            txt(p < 0.3 ? 'Nu⁻ attacks from the BACK side, opposite to X' : (p < 0.7 ? 'Transition state: [Nu···C···X]‡ , C is sp², 5-coordinate' : 'Walden inversion: configuration flipped, X⁻ leaves'), 14, 188, '#fbbf24', 11);
+          } else {
+            var lg = cx + 28 + 70 * smooth(p, 0.1, 0.4), nu1 = p < 0.65 ? cx - 150 + 0 : 0, flat = smooth(p, 0.15, 0.35), nuA = cx - 150 + 120 * smooth(p, 0.62, 0.92) , bondNu2 = smooth(p, 0.8, 1);
+            var ang2 = [[-1, -0.5], [0.2, 1], [0.9, -0.6]]; ang2.forEach(function (a) { var xx = cx - 8 + a[0] * 34, yy = cy + a[1] * 30 * (1 - 0.0 * flat); ln(cx - 8, cy, xx, yy, '#94a3b8', 2); atom(xx, yy, 9, '#e2e8f0', 'R'); });
+            ln(cx - 8, cy, lg - 14, cy, 'rgba(244,114,182,' + (1 - smooth(p, 0.1, 0.35)).toFixed(2) + ')', 4); atom(cx - 8, cy, 15, p > 0.3 && p < 0.9 ? '#ef4444' : '#475569', 'C'); atom(lg, cy, 14, '#f472b6', 'X');
+            if (p > 0.55) { var nPos = cx - 130 + 100 * smooth(p, 0.55, 0.9); atom(nPos, cy, 14, '#38bdf8', 'Nu'); ln(cx - 8, cy, nPos + 14, cy, 'rgba(56,189,248,' + (bondNu2).toFixed(2) + ')', 1 + 3 * bondNu2); if (p > 0.6 && p < 0.9) { var nb = cx - 130 + 100 * smooth(p, 0.55, 0.9); ln(cx - 8, cy - 40, nb + 14, cy - 8, 'rgba(56,189,248,.3)', 2); atom(cx + 60, cy - 55 * (1 - 0), 12, 'rgba(56,189,248,.5)', 'Nu'); } }
+            txt(p < 0.15 ? 'Step 1 (slow): C–X bond ionises' : (p < 0.5 ? 'Planar carbocation R₃C⁺ (sp²) forms, X⁻ leaves' : (p < 0.9 ? 'Step 2 (fast): Nu⁻ attacks from either face' : 'Racemic mixture: 50% retention + 50% inversion')), 14, 188, '#fbbf24', 11);
+          }
+          var gl = 36, gt = 214, gw = W - gl - 12, gh = H - gt - 26, o = G(gl, gt, gw, gh, 0, 1, -40, 100, 'reaction coordinate', 'E'); CV(o, function (x) { return en(m, x); }, 0, 1, '#a78bfa', 3); dot(o.X(p), o.Y(en(m, p)), 5, '#f97316');
+          if (m === 2) { txt('TS1', o.X(0.25) - 8, o.Y(55) - 4, '#94a3b8', 9); txt('R⁺ intermediate', o.X(0.45), o.Y(25) - 4, '#94a3b8', 9); txt('TS2', o.X(0.7) - 8, o.Y(38) - 4, '#94a3b8', 9); } else txt('single transition state', o.X(0.5) - 38, o.Y(70) - 4, '#94a3b8', 9);
+          txt(m === 1 ? 'rate = k[RX][Nu] · inversion · 1°>2°>3°' : 'rate = k[RX] · racemisation · 3°>2°>1°', gl, H - 8, '#94a3b8', 10);
+        }
+      });
+    }
+  });
+  SIM_LIB.push({
+    key: 'bohr', title: '2D · Bohr model and hydrogen emission spectrum', re: /bohr|hydrogen (spectrum|emission|atom)|emission spectrum|lyman|balmer|paschen|brackett|spectral series|rydberg|energy levels? of (hydrogen|an? atom)|photon (absorb|emit)/,
+    desc: 'Bohr hydrogen atom: electron jumps between orbits with photon emission/absorption, energy level diagram and Lyman, Balmer, Paschen spectrum lines', note: 'Eₙ = −13.6/n² eV, rₙ = 0.529n² Å. 1/λ = R(1/n₁² − 1/n₂²), R = 1.097×10⁷ m⁻¹. Lyman (to n=1, UV), Balmer (to n=2, visible), Paschen (to n=3, IR). Emission when electron falls, absorption when photon of exact ΔE excites it.',
+    fn: function () {
+      sl('n', 'Electron orbit n', 1, 6, 3, 1); sl('to', 'Jump to orbit n', 1, 6, 2, 1); sl('Z', 'Nuclear charge Z (1 = H, 2 = He⁺)', 1, 3, 1, 1);
+      var ang = 0, ph = [], cur = 3, lines = [], tgt = -1;
+      function E(n) { return -13.6 * P.Z * P.Z / (n * n); }
+      function wl(a, b) { var d = Math.abs(E(a) - E(b)); return 1239.84 / d; }
+      function col(l) { if (l < 380) return '#a78bfa'; if (l > 750) return '#7f1d1d'; var r, gg, b; if (l < 440) { r = (440 - l) / 60; gg = 0; b = 1; } else if (l < 490) { r = 0; gg = (l - 440) / 50; b = 1; } else if (l < 510) { r = 0; gg = 1; b = (510 - l) / 20; } else if (l < 580) { r = (l - 510) / 70; gg = 1; b = 0; } else if (l < 645) { r = 1; gg = (645 - l) / 65; b = 0; } else { r = 1; gg = 0; b = 0; } return 'rgb(' + Math.round(255 * r) + ',' + Math.round(255 * gg) + ',' + Math.round(255 * b) + ')'; }
+      function jump() { var a = Math.round(P.n), b = Math.round(P.to); if (a === b) return; tgt = b; ph.push({ t: 0, a: a, b: b, c: col(wl(a, b)), em: a > b }); cur = b; lines.push([wl(a, b), a, b]); if (lines.length > 12) lines.shift(); }
+      play({
+        setup: function () { cur = Math.round(P.n); }, reset: function () { ph = []; lines = []; cur = Math.round(P.n); },
+        change: function (k) { if (k === 'n') cur = Math.round(P.n); if (k === 'to') jump(); }, 
+        step: function (dt) { ang += dt * 3 / cur; ph.forEach(function (p) { p.t += dt * 0.8; }); ph = ph.filter(function (p) { return p.t < 1; }); },
+        draw: function () {
+          var cx = W * 0.32, cy = 150, i, sc = 17;
+          for (i = 1; i <= 6; i++) { g.strokeStyle = i === cur ? '#38bdf8' : '#334155'; g.beginPath(); g.arc(cx, cy, i * sc * 1.1, 0, 7); g.stroke(); txt('n=' + i, cx + i * sc * 1.1 - 8, cy - 4, '#64748b', 8); }
+          dot(cx, cy, 6, '#ef4444'); txt('+', cx - 3, cy + 4, '#fff', 9); var rr = cur * sc * 1.1; dot(cx + rr * Math.cos(ang), cy + rr * Math.sin(ang), 5, '#38bdf8');
+          ph.forEach(function (p) { var a = Math.PI / 4, rA = p.a * sc * 1.1; var x0 = cx + rA * Math.cos(ang), y0 = cy - rA, q = p.t; var x = cx + 20 + (p.em ? q * 100 : (1 - q) * 100), y = cy - 70 - q * 0 + (p.em ? -q * 20 : -(1 - q) * 20); g.strokeStyle = p.c; g.lineWidth = 2; g.beginPath(); for (var j = 0; j < 20; j++) { var xx = x + j * 3, yy = y + 4 * Math.sin(j + q * 20); if (j) g.lineTo(xx, yy); else g.moveTo(xx, yy); } g.stroke(); g.lineWidth = 1; });
+          txt('n = ' + cur + '   E = ' + E(cur).toFixed(2) + ' eV   r = ' + (0.529 * cur * cur / P.Z).toFixed(2) + ' Å', 10, 16, '#e2e8f0', 12); var a1 = Math.round(P.n), b1 = Math.round(P.to); if (a1 !== b1) { var w = wl(a1, b1), nm = b1 === 1 ? 'Lyman' : (b1 === 2 ? 'Balmer' : (b1 === 3 ? 'Paschen' : (b1 === 4 ? 'Brackett' : 'Pfund'))); txt((a1 > b1 ? 'Emission ' : 'Absorption ') + a1 + ' ↔ ' + b1 + ' : ΔE = ' + Math.abs(E(a1) - E(b1)).toFixed(2) + ' eV, λ = ' + w.toFixed(0) + ' nm', 10, 34, '#fbbf24', 11); if (a1 > b1) txt(nm + ' series (' + (w < 380 ? 'UV' : (w > 750 ? 'IR' : 'visible')) + ')', 10, 50, '#94a3b8', 11); } else txt('Move "Jump to" to make the electron change orbit', 10, 34, '#94a3b8', 11);
+          var ex = W * 0.62, el = 56, eh = 130; txt('Energy levels', ex, 68, '#94a3b8', 10); for (i = 1; i <= 6; i++) { var yy = 70 + eh * (1 - (E(i) / E(1) < 0 ? 0 : 0)) ; var y = 76 + (1 - (-E(i) / (13.6 * P.Z * P.Z))) * eh; ln(ex + 20, y, ex + 80, y, i === cur ? '#38bdf8' : '#475569', i === cur ? 3 : 1); txt(i + '', ex + 8, y + 3, '#94a3b8', 9); }
+          var sy = 216, sw = W - 24, so = G(12, sy, sw, 44, 0, 1, 0, 1, '', ''); so = so; rect(12, sy, sw, 44, '#000', '#334155'); for (var k = 0; k < 24; k++) { var wlv = 380 + k * 15.5; } 
+          var x0n = 80, x1n = 800; function SX(l) { return 12 + sw * (l - x0n) / (x1n - x0n); } var series = [[1, 'Lyman'], [2, 'Balmer'], [3, 'Paschen']];
+          series.forEach(function (s) { for (var u = s[0] + 1; u <= 7; u++) { var l = wl(u, s[0]); if (l >= x0n && l <= x1n) { ln(SX(l), sy, SX(l), sy + 44, col(l), 2); } } });
+          lines.forEach(function (L) { if (L[0] >= x0n && L[0] <= x1n) { ln(SX(L[0]), sy - 4, SX(L[0]), sy + 48, '#fff', 1); } });
+          txt('Lyman (UV)', 14, sy + 56, '#a78bfa', 9); txt('Balmer (visible)', SX(380), sy + 56, '#4ade80', 9); txt('Paschen (IR)', SX(700), sy + 56, '#f87171', 9); txt('λ: 80 nm → 800 nm', 12, sy + 70, '#64748b', 9);
+          txt('1/λ = R·Z²(1/n₁² − 1/n₂²)', 10, H - 8, '#94a3b8', 10);
+        }
+      });
+    }
+  });
+  SIM_LIB.push({
+    key: 'cft', title: '2D · Crystal Field Theory: d-orbital splitting and CFSE', re: /crystal field|\bcft\b|d.?orbital splitting|cfse|high.?spin|low.?spin|spectrochemical|t2g|\beg\b|ligand field|octahedral complex|tetrahedral complex|crystal field splitting/,
+    desc: 'd-orbital splitting for octahedral or tetrahedral complexes with weak or strong field ligands, electron filling, CFSE, high spin vs low spin, pairing energy', note: 'Octahedral: t₂g (lower, −0.4Δo each) and e_g (higher, +0.6Δo each). Tetrahedral: Δt = 4/9 Δo, e lower, t₂ higher, always high spin. If Δo < pairing energy P → high spin (weak field, e.g. H₂O, halides); if Δo > P → low spin (strong field, e.g. CN⁻, CO). CFSE = (−0.4 n(t₂g) + 0.6 n(e_g))Δo.',
+    fn: function () {
+      sl('G', 'Geometry (1 Octahedral, 2 Tetrahedral)', 1, 2, 1, 1); sl('d', 'd-electrons', 1, 10, 6, 1); sl('L', 'Ligand field strength Δo', 0.5, 3, 1, 0.1, ' (×P≈1)'); 
+      var CNAME = ['I⁻ < Br⁻ < Cl⁻ < F⁻ < H₂O < NH₃ < en < CN⁻ < CO'];
+      play({
+        draw: function () {
+          var geo = Math.round(P.G), d = Math.round(P.d), D = geo === 1 ? P.L : P.L * 4 / 9, Pair = 1, i, lo, hi, nlo, nhi, oct = geo === 1, low = oct && P.L > Pair, spin;
+          var lowN = oct ? 3 : 2, highN = oct ? 2 : 3, up = [], dn = []; // levels: lo has lowN orbitals, hi highN
+          var occ = []; for (i = 0; i < 5; i++) occ.push([0, 0]); // index 0..lowN-1 low; then high
+          var order = [];
+          if (oct) { order = low ? [0, 1, 2, 3, 4] : [0, 1, 2, 3, 4]; } else order = [0, 1, 2, 3, 4];
+          var e = d, k;
+          if (oct && low) { for (k = 0; k < 3 && e > 0; k++) { occ[k][0] = 1; e--; } for (k = 0; k < 3 && e > 0; k++) { occ[k][1] = 1; e--; } for (k = 3; k < 5 && e > 0; k++) { occ[k][0] = 1; e--; } for (k = 3; k < 5 && e > 0; k++) { occ[k][1] = 1; e--; } }
+          else { for (k = 0; k < 5 && e > 0; k++) { occ[k][0] = 1; e--; } for (k = 0; k < 5 && e > 0; k++) { occ[k][1] = 1; e--; } }
+          var nl = 0, nh = 0; for (k = 0; k < lowN; k++) nl += occ[k][0] + occ[k][1]; for (k = lowN; k < 5; k++) nh += occ[k][0] + occ[k][1];
+          var unp = 0; for (k = 0; k < 5; k++) if (occ[k][0] + occ[k][1] === 1) unp++;
+          var cfse = oct ? (-0.4 * nl + 0.6 * nh) * D : (-0.6 * nl + 0.4 * nh) * D; var pairs = 0; for (k = 0; k < 5; k++) if (occ[k][0] && occ[k][1]) pairs++;
+          var spinName = !oct ? 'High spin (tetrahedral Δt < P always)' : (low ? 'Low spin (strong field: Δo > P)' : 'High spin (weak field: Δo < P)');
+          txt((oct ? 'Octahedral' : 'Tetrahedral') + ' complex, d' + d, 10, 18, '#e2e8f0', 14); txt('Δ' + (oct ? 'o' : 't') + ' = ' + D.toFixed(2) + ' P   ' + spinName, 10, 36, low ? '#4ade80' : '#fbbf24', 11);
+          var base = 130, top = 66, mid = 200, ctr = 150, dh = 60 * D / 1.0, yAvg = 225 - 0, yb = 210, spl = clamp(D * 55, 25, 130), yLo = yb + (oct ? 0.4 : 0.6) * spl * 0.0 - 0, y0 = 170; var yHi, yLw; if (oct) { yHi = y0 - 0.6 * spl; yLw = y0 + 0.4 * spl; } else { yHi = y0 - 0.4 * spl; yLw = y0 + 0.6 * spl; }
+          ln(30, y0, 80, y0, '#64748b', 1); txt('free ion (avg.)', 24, y0 + 12, '#64748b', 9); g.setLineDash([3, 3]); ln(80, y0, 120, yHi, '#475569'); ln(80, y0, 120, yLw, '#475569'); g.setLineDash([]);
+          function lvl(n, y, label, off, s) { for (var q = 0; q < n; q++) { var x = 120 + q * 44, oi = s + q; ln(x, y, x + 36, y, '#94a3b8', 3); if (occ[oi][0]) txt('↑', x + 10, y - 4, '#38bdf8', 16); if (occ[oi][1]) txt('↓', x + 20, y - 4, '#f472b6', 16); } txt(label, 120 + n * 44 + 2, y + 4, '#e2e8f0', 11); }
+          lvl(highN, yHi, oct ? 'e_g' : 't₂', 0, lowN); lvl(lowN, yLw, oct ? 't₂g' : 'e', 0, 0);
+          var bx = 124 + (Math.max(lowN, highN)) * 44 + 40; ln(bx, yHi, bx, yLw, '#facc15', 1.5); txt('Δ' + (oct ? 'o' : 't'), bx + 4, (yHi + yLw) / 2 + 3, '#facc15', 12);
+          var sy = 256; txt('Unpaired electrons = ' + unp + '   (μ = ' + Math.sqrt(unp * (unp + 2)).toFixed(2) + ' BM)', 10, sy, '#e2e8f0', 12); txt('CFSE = ' + (oct ? '[−0.4(' + nl + ') + 0.6(' + nh + ')]Δo = ' : '[−0.6(' + nl + ') + 0.4(' + nh + ')]Δt = ') + cfse.toFixed(2) + ' Δ' + (oct ? 'o' : 't') + (pairs > (d > 5 && !low ? d - 5 : 0) && low ? '  + pairing cost' : ''), 10, sy + 18, '#fbbf24', 11);
+          txt('Spectrochemical (weak → strong): I⁻ < Br⁻ < Cl⁻ < F⁻ < H₂O < NH₃ < en < CN⁻ < CO', 10, H - 24, '#94a3b8', 9); txt('Δo > P (pairing energy)  →  low spin; else high spin', 10, H - 8, '#94a3b8', 10);
+          if (P.L > Pair - 0.05 && P.L < Pair + 0.05 && oct) txt('Δo ≈ P : borderline', W - 120, 18, '#f87171', 10);
+        }
+      });
+    }
+  });
+  SIM_LIB.push({
+    key: 'periodic', title: '2D · Periodic table and electronic configuration (Aufbau)', re: /periodic table|electronic configuration|aufbau|\bhund|pauli|orbital diagram|valence (shell|electron)|n \+ l|exceptional configuration|s.?block|p.?block|d.?block|f.?block|quantum numbers?/,
+    desc: 'tap any element of the first 36 in a colour-coded periodic table to see Aufbau filling, orbital box diagram, Pauli and Hund checks and block/group/period', note: 'Aufbau: fill in order of increasing n + l (1s 2s 2p 3s 3p 4s 3d 4p). Pauli: max 2 electrons per orbital with opposite spins. Hund: fill degenerate orbitals singly first with parallel spins. Exceptions: Cr (3d⁵4s¹) and Cu (3d¹⁰4s¹) because half/fully-filled d is extra stable.',
+    fn: function () {
+      var zin = sl('Z', 'Atomic number Z (or tap the table)', 1, 36, 26, 1);
+      var SYM = 'H He Li Be B C N O F Ne Na Mg Al Si P S Cl Ar K Ca Sc Ti V Cr Mn Fe Co Ni Cu Zn Ga Ge As Se Br Kr'.split(' ');
+      var NAME = 'Hydrogen Helium Lithium Beryllium Boron Carbon Nitrogen Oxygen Fluorine Neon Sodium Magnesium Aluminium Silicon Phosphorus Sulphur Chlorine Argon Potassium Calcium Scandium Titanium Vanadium Chromium Manganese Iron Cobalt Nickel Copper Zinc Gallium Germanium Arsenic Selenium Bromine Krypton'.split(' ');
+      var ORD = [['1s', 2], ['2s', 2], ['2p', 6], ['3s', 2], ['3p', 6], ['4s', 2], ['3d', 10], ['4p', 6]];
+      function pos(z) { if (z === 1) return [0, 0]; if (z === 2) return [17, 0]; if (z <= 4) return [z - 3, 1]; if (z <= 10) return [z + 5 - 3 + 0 - 0 - 0, 1]; if (z <= 12) return [z - 11, 2]; if (z <= 18) return [z - 18 + 17 - 0, 2]; if (z <= 20) return [z - 19, 3]; if (z <= 30) return [z - 19 + 1, 3]; return [z - 31 + 12, 3]; }
+      function PX(z) { var p; if (z === 1) p = [0, 0]; else if (z === 2) p = [17, 0]; else if (z <= 4) p = [z - 3, 1]; else if (z <= 10) p = [z + 7, 1]; else if (z <= 12) p = [z - 11, 2]; else if (z <= 18) p = [z - 1, 2]; else if (z <= 30) p = [z - 19, 3]; else p = [z - 19, 3]; return p; }
+      function cfg(z) {
+        var occ = {}, left = z, i; ORD.forEach(function (o) { var n = Math.min(o[1], left); occ[o[0]] = n; left -= n; });
+        if (z === 24) { occ['4s'] = 1; occ['3d'] = 5; } if (z === 29) { occ['4s'] = 1; occ['3d'] = 10; } return occ;
+      }
+      function blk(z) { if (z === 2) return 's'; var p = PX(z); if (p[0] <= 1) return 's'; if (p[0] <= 11 && z > 18) return 'd'; if (p[0] >= 12 && p[0] <= 17 && z > 4) return 'p'; return 'p'; }
+      function block(z) { if (z <= 2 || z === 3 || z === 4 || z === 11 || z === 12 || z === 19 || z === 20) return 's'; if ((z >= 21 && z <= 30)) return 'd'; return 'p'; }
+      var BC = { s: '#ef4444', p: '#38bdf8', d: '#4ade80', f: '#facc15' }, cell = 0, tx = 8, ty = 48, sel = 26;
+      play({
+        setup: function () { sel = Math.round(P.Z); var cv = document.getElementById('c'); cv.addEventListener('click', function (ev) { var r = cv.getBoundingClientRect(), x = (ev.clientX - r.left) * W / r.width, y = (ev.clientY - r.top) * H / r.height; for (var z = 1; z <= 36; z++) { var p = PX(z), cx = tx + p[0] * cell, cy = ty + p[1] * cell; if (x >= cx && x < cx + cell && y >= cy && y < cy + cell) { sel = z; P.Z = z; zin.value = z; zin.oninput(); return; } } }); }, change: function (k) { if (k === 'Z') sel = Math.round(P.Z); },
+        draw: function () {
+          cell = (W - 16) / 18; sel = Math.round(P.Z) || sel; var z, occ = cfg(sel), blkc = BC[block(sel)];
+          for (z = 1; z <= 36; z++) { var p = PX(z), cx = tx + p[0] * cell, cy = ty + p[1] * cell; rect(cx + 0.5, cy + 0.5, cell - 1, cell - 1, z === sel ? '#fff' : BC[block(z)] + '55', BC[block(z)]); txt(SYM[z - 1], cx + 1, cy + cell * 0.65, z === sel ? '#000' : '#e2e8f0', Math.max(8, cell * 0.42)); }
+          txt(SYM[sel - 1] + ' · ' + NAME[sel - 1] + ' (Z = ' + sel + ')', 10, 16, '#e2e8f0', 14);
+          var per = sel <= 2 ? 1 : (sel <= 10 ? 2 : (sel <= 18 ? 3 : 4)), pp = PX(sel), grp = pp[0] + 1; txt(block(sel) + '-block · period ' + per + ' · group ' + grp, 10, 34, blkc, 12);
+          var s = '', sup = '⁰¹²³⁴⁵⁶⁷⁸⁹'; ORD.forEach(function (o) { var n = occ[o[0]]; if (n > 0) s += o[0] + (n >= 10 ? '¹' + sup[n - 10] : sup[n]) + ' '; }); txt(s, 10, ty + cell * 4 + 18, '#fbbf24', 13);
+          var noble = [2, 10, 18, 36], core = 0; noble.forEach(function (nz) { if (nz < sel) core = nz; }); if (core) txt('[' + SYM[core - 1] + '] + valence electrons', 10, ty + cell * 4 + 34, '#94a3b8', 10);
+          var oy = ty + cell * 4 + 44, bw = 18, x = 8, row = 0; var unp = 0;
+          ORD.forEach(function (o) {
+            var n = occ[o[0]]; if (!n && o[0] !== '4s' && o[0] !== '3d') { }
+            var norb = o[1] / 2, k, i; var arr = []; for (i = 0; i < norb; i++) arr.push([0, 0]); var left = n; for (i = 0; i < norb && left > 0; i++) { arr[i][0] = 1; left--; } for (i = 0; i < norb && left > 0; i++) { arr[i][1] = 1; left--; }
+            if (x + norb * bw > W - 24) { x = 8; row++; }
+            var yy = oy + row * 40; txt(o[0], x, yy + 8, '#94a3b8', 9); for (i = 0; i < norb; i++) { rect(x + i * bw, yy + 12, bw - 2, 20, null, n ? '#64748b' : '#1e293b'); if (arr[i][0]) txt('↑', x + i * bw + 3, yy + 28, '#38bdf8', 15); if (arr[i][1]) txt('↓', x + i * bw + 9, yy + 28, '#f472b6', 15); if (arr[i][0] + arr[i][1] === 1) unp++; }
+            x += norb * bw + 12;
+          });
+          var rows = row + 1; var ey = oy + rows * 40 + 8; txt('Unpaired electrons: ' + unp + (unp ? ' (paramagnetic)' : ' (diamagnetic)'), 10, ey, '#e2e8f0', 11);
+          txt((sel === 24 || sel === 29) ? 'Exception! half/fully filled 3d is extra stable: 4s¹' : 'Aufbau (n+l) · Pauli (≤2, opposite spins) · Hund (singly first)', 10, ey + 16, (sel === 24 || sel === 29) ? '#f87171' : '#94a3b8', 10);
+          txt('red s · blue p · green d', 10, H - 6, '#64748b', 9);
+        }
+      });
+    }
+  });
+  SIM_LIB.push({
+    key: 'azeotrope', title: '2D · Azeotropes and T-x-y distillation diagram', re: /azeotrop|fractional distillation|distillation|boiling point (diagram|curve)|t.?x.?y|constant boiling|ethanol.{0,10}water|hno3.{0,10}water|minimum boiling|maximum boiling|vapou?r liquid equilibri/,
+    desc: 'T-x-y diagram of a binary mixture with ideal, minimum-boiling (positive deviation) and maximum-boiling (negative deviation) azeotropes and a stepwise distillation staircase', note: 'Ideal mixtures can be fully separated by fractional distillation. Positive deviation gives a minimum-boiling azeotrope (e.g. 95.6% ethanol-water at 78.2°C); negative deviation gives a maximum-boiling azeotrope (e.g. 68% HNO₃-water at 120.5°C). At the azeotrope vapour and liquid have the same composition so distillation cannot go further.',
+    fn: function () {
+      sl('A', 'Mixture (1 Ideal, 2 Min-boiling, 3 Max-boiling)', 1, 3, 2, 1); sl('x', 'Starting mole fraction of A', 0.02, 0.98, 0.3, 0.01); sl('Tb', 'Heating (0 off, 1 on)', 0, 1, 1, 1);
+      var TA = 100, TB = 78, stage = 0, path = [], pt = 0, anim = 0;
+      function Tbub(x) { var m = Math.round(P.A), t = x * TA + (1 - x) * TB; if (m === 2) t -= 11 * 4 * x * (1 - x); if (m === 3) t += 14 * 4 * x * (1 - x); return t; }
+      function yv(x) { var m = Math.round(P.A), a = m === 1 ? 2.2 : (m === 2 ? 3.2 : 1.8); var s = a * x / (1 + (a - 1) * x) ; if (m === 2) { var xa = 0.62; return clamp(x < xa ? Math.min(0.99, x + (x * (1 - x)) * 3.2 * (1 - x / xa) * 1.6 + 0.0) : x - (x * (1 - x)) * 2.2 * ((x - xa) / (1 - xa)), 0, 1); } if (m === 3) { var xb = 0.55; return clamp(x < xb ? x - x * (1 - x) * 2.2 * (1 - x / xb) : x + x * (1 - x) * 2.0 * ((x - xb) / (1 - xb)), 0, 1); } return s; }
+      function azx() { var m = Math.round(P.A); return m === 2 ? 0.62 : (m === 3 ? 0.55 : -1); }
+      function build() { path = []; var x = P.x, i, y; var T; path.push([x, Tbub(x), 'liq']); for (i = 0; i < 12; i++) { y = yv(x); if (Math.abs(y - x) < 0.004) break; path.push([y, Tbub(x), 'vap']); path.push([y, Tbub(y), 'liq']); x = y; } pt = 0; anim = 0; }
+      play({
+        setup: build, reset: build, change: build,
+        step: function (dt) { if (P.Tb >= 1) { anim += dt * 1.0; pt = Math.min(path.length - 1, Math.floor(anim)); if (anim > path.length + 2) anim = 0; } },
+        draw: function (t) {
+          var gl = 36, gt = 52, gw = W - gl - 14, gh = H * 0.5, Tmin = 60, Tmax = 130, o = G(gl, gt, gw, gh, 0, 1, Tmin, Tmax, 'x_A / y_A', 'T (°C)');
+          CV(o, Tbub, 0, 1, '#38bdf8', 3); var yc = []; (function () { g.save(); g.beginPath(); g.rect(o.l, o.t, o.w, o.h); g.clip(); g.strokeStyle = '#f97316'; g.lineWidth = 3; g.beginPath(); for (var i = 0; i <= 90; i++) { var x = i / 90, T = Tbub(x), y = yv(x); var XX = o.X(y), YY = o.Y(T); if (i) g.lineTo(XX, YY); else g.moveTo(XX, YY); } g.stroke(); g.restore(); g.lineWidth = 1; })();
+          txt('liquid (bubble) curve', gl + 4, gt + 12, '#38bdf8', 10); txt('vapour (dew) curve', gl + 4, gt + 26, '#f97316', 10); txt('liquid', gl + gw * 0.45, gt + gh - 6, '#64748b', 10); txt('vapour', gl + gw * 0.45, gt + 40, '#64748b', 10);
+          var az = azx(); if (az > 0) { var Ta = Tbub(az); dot(o.X(az), o.Y(Ta), 5, '#fde047'); ln(o.X(az), o.Y(Ta), o.X(az), gt + gh, '#fde047', 1); txt('azeotrope x=' + az.toFixed(2) + ', ' + Ta.toFixed(1) + '°C', Math.min(o.X(az) - 40, W - 160), o.Y(Ta) + (Math.round(P.A) === 2 ? 22 : -8), '#fde047', 10); }
+          g.setLineDash([2, 3]); ln(o.X(P.x), gt, o.X(P.x), gt + gh, '#64748b'); g.setLineDash([]);
+          for (var i = 0; i <= pt && i < path.length; i++) { var p = path[i]; if (i) { var q = path[i - 1]; ln(o.X(q[0]), o.Y(q[1]), o.X(p[0]), o.Y(p[1]), '#e2e8f0', 1.5); } dot(o.X(p[0]), o.Y(p[1]), 3, p[2] === 'vap' ? '#f97316' : '#38bdf8'); }
+          var last = path[Math.min(pt, path.length - 1)] || [P.x, 100, 'liq']; txt('Step ' + Math.ceil(pt / 2) + ' (theoretical plate)   composition ' + last[0].toFixed(2), 10, 16, '#e2e8f0', 12);
+          var fin = path.length ? path[path.length - 1][0] : P.x; txt(Math.round(P.A) === 1 ? 'Ideal: distillate → pure ' + (fin > 0.5 ? 'A (volatile)' : 'B') : 'Distillate limit: ' + (az > 0 ? 'azeotrope x = ' + az.toFixed(2) : ''), 10, 34, '#fbbf24', 11);
+          var cy0 = gt + gh + 34, bw = (W - 30) / 3; ['Boiling flask', 'Column', 'Condenser'].forEach(function (nm, i) { rect(10 + i * (bw + 5), cy0, bw, 56, '#0b1220', '#334155'); txt(nm, 14 + i * (bw + 5), cy0 + 12, '#94a3b8', 10); });
+          var lc = last[0]; rect(12, cy0 + 22, bw - 4, 32, 'rgba(56,189,248,' + (0.2 + 0.4 * P.x).toFixed(2) + ')'); if (P.Tb >= 1) { for (var b = 0; b < 4; b++) dot(20 + b * 18, cy0 + 50 - ((t * 20 + b * 9) % 28), 2.5, '#e2e8f0'); } rect(14 + (bw + 5) + 10, cy0 + 16, bw - 24, 36, 'rgba(249,115,22,' + (0.15 + 0.5 * lc).toFixed(2) + ')'); rect(14 + 2 * (bw + 5), cy0 + 28, bw - 8, 24, 'rgba(249,115,22,' + (0.15 + 0.5 * (path.length ? path[path.length - 1][0] : P.x)).toFixed(2) + ')');
+          txt(Math.round(P.A) === 1 ? 'Ideal solution: no azeotrope' : (Math.round(P.A) === 2 ? 'Min-boiling azeotrope: +ve deviation, weaker A–B' : 'Max-boiling azeotrope: −ve deviation, stronger A–B'), 10, H - 8, '#94a3b8', 10);
+        }
+      });
+    }
+  });
+  SIM_LIB.push({
+    key: 'corrosion', title: '2D · Corrosion and rusting of iron (electrochemical cell)', re: /corrosion|rusting|\brust\b|galvani[sz]ation|sacrificial|anodic|cathodic protection|iron.{0,10}(oxidi|rust)/,
+    desc: 'iron rusting as a tiny electrochemical cell: anode and cathode on a drop of water, effect of pH, salinity and dissolved oxygen on rust mass over time', note: 'Anode: Fe → Fe²⁺ + 2e⁻. Cathode: O₂ + 4H⁺ + 4e⁻ → 2H₂O (or O₂ + 2H₂O + 4e⁻ → 4OH⁻). Fe²⁺ is further oxidised to rust, Fe₂O₃·xH₂O. Acid, salt (higher conductivity) and dissolved O₂ speed it up. Prevention: paint, galvanising (Zn), sacrificial anode (Mg).',
+    fn: function () {
+      sl('pH', 'pH of water', 2, 12, 7, 0.5); sl('Sal', 'Salinity (NaCl)', 0, 5, 0, 0.1, ' %'); sl('O', 'Dissolved O₂', 0.5, 10, 5, 0.5, ' mg/L'); sl('Zn', 'Zinc coating (galvanised: 0 no, 1 yes)', 0, 1, 0, 1);
+      var tm = 0, rust = 0, ev = [];
+      function k() { var a = 1 + 0.5 * Math.max(0, 7 - P.pH) + (P.pH > 10 ? -0.6 * (P.pH - 10) : 0); a = Math.max(0.1, a); return 0.01 * a * (0.4 + 0.6 * P.Sal / 2.5 * 2 + 0.2) * (P.O / 5) * (P.Zn >= 1 ? 0.04 : 1); }
+      function rst() { tm = 0; rust = 0; ev = []; }
+      play({
+        setup: rst, reset: rst,
+        step: function (dt) { tm += dt; rust += k() * dt * 10; if (rust > 100) { rust = 100; } ev.push([tm, rust]); if (ev.length > 400) ev.shift(); },
+        draw: function (t) {
+          var l = 14, top = 54, w = W - 28, hh = 120, cx = W / 2, i, r = clamp(rust / 100, 0, 1), rate = k() * 10;
+          rect(l, top, w, hh * 0.45, 'rgba(56,189,248,.18)', null); txt('water drop (electrolyte)', l + 4, top + 14, '#7dd3fc', 10);
+          g.fillStyle = P.Zn >= 1 ? '#94a3b8' : '#6b7280'; g.fillRect(l, top + hh * 0.45, w, hh * 0.55); if (P.Zn >= 1) rect(l, top + hh * 0.45, w, 6, '#e5e7eb'); txt(P.Zn >= 1 ? 'iron + Zn coating (Zn corrodes first)' : 'iron (Fe)', l + 4, top + hh * 0.45 + hh * 0.55 - 6, '#e2e8f0', 10);
+          var ax = l + w * 0.28, cxx = l + w * 0.72; rect(ax - 26, top + hh * 0.45 + 2, 52, 18, 'rgba(239,68,68,.55)'); txt('ANODE', ax - 20, top + hh * 0.45 + 15, '#fff', 10); rect(cxx - 30, top + hh * 0.45 + 2, 60, 18, 'rgba(59,130,246,.55)'); txt('CATHODE', cxx - 26, top + hh * 0.45 + 15, '#fff', 10);
+          var rw = 8 + r * 34; g.fillStyle = 'rgba(194,65,12,' + (0.3 + 0.7 * r).toFixed(2) + ')'; g.fillRect(ax - 26, top + hh * 0.45 - rw * 0.4, 52, rw * 0.4 + 2);
+          txt('Fe → Fe²⁺ + 2e⁻', ax - 44, top + hh + 22, '#fca5a5', 10); txt(P.pH < 7 ? 'O₂ + 4H⁺ + 4e⁻ → 2H₂O' : 'O₂ + 2H₂O + 4e⁻ → 4OH⁻', cxx - 62, top + hh + 22, '#93c5fd', 10);
+          var nE = Math.round(2 + 10 * clamp(rate / 0.4, 0, 1)); for (i = 0; i < nE; i++) { var u = ((t * (0.3 + rate) + i / nE) % 1), x = ax + (cxx - ax) * u; dot(x, top + hh * 0.45 + 28 + 0, 2.5, '#38bdf8'); }
+          for (i = 0; i < 8; i++) { var uu = ((t * 0.3 + i / 8) % 1), xx = cxx + (ax - cxx) * uu, yy = top + hh * 0.45 - 12 - 8 * Math.sin(uu * 3.14); dot(xx, yy, 2.5, i % 2 ? '#fb923c' : '#4ade80'); }
+          txt('e⁻ through metal', cx - 40, top + hh * 0.45 + 40, '#38bdf8', 9); txt('ions through water', cx - 40, top + hh * 0.45 - 20, '#94a3b8', 9);
+          txt('Rust (Fe₂O₃·xH₂O) formed: ' + rust.toFixed(1) + ' mg', 10, 16, '#fb923c', 13); txt('rate ' + rate.toFixed(3) + ' mg/s   ' + (rate > 0.25 ? 'FAST' : (rate > 0.08 ? 'moderate' : 'slow')) + (P.Zn >= 1 ? '  — galvanised: Zn is the sacrificial anode' : ''), 10, 34, '#94a3b8', 11);
+          var gl = 38, gt = top + hh + 36, gw = W - gl - 14, gh = H - gt - 22, o = G(gl, gt, gw, gh, 0, Math.max(10, tm), 0, 100, 'time (s)', 'rust mass'); g.strokeStyle = '#fb923c'; g.lineWidth = 3; g.beginPath(); ev.forEach(function (e, j) { var X = o.X(e[0] - (ev[0][0] - 0) + 0), Y = o.Y(e[1]); X = o.l + o.w * (e[0] - ev[0][0]) / Math.max(10, ev[ev.length - 1][0] - ev[0][0]); if (j) g.lineTo(X, Y); else g.moveTo(X, Y); }); g.stroke(); g.lineWidth = 1;
+        }
+      });
+    }
+  });
+  SIM_LIB.push({
+    key: 'mo', title: '2D · Molecular orbital (MO) diagram generator: H₂ to F₂', re: /molecular orbital|\bmot\b|\bmo (diagram|theory)|bond order|sigma.{0,6}pi|antibonding|bonding orbital|\bhomo\b|\blumo\b|paramagnetic|diamagnetic|o2.{0,6}paramagnet/,
+    desc: 'MO energy diagrams for homonuclear diatomics H2 to F2 with electron filling, bond order, magnetism, HOMO and LUMO', note: 'Bond order = (Nb − Na)/2. Up to N₂ the order is σ2s < σ*2s < π2p < σ2p < π*2p < σ*2p; for O₂ and F₂ σ2p drops below π2p. O₂ has two unpaired electrons in π* (paramagnetic) and bond order 2; N₂ has bond order 3 (diamagnetic).',
+    fn: function () {
+      sl('m', 'Molecule (1 H₂ … 8 F₂)', 1, 8, 7, 1);
+      var NM = [['H₂', 2], ['He₂', 4], ['Li₂', 6], ['Be₂', 8], ['B₂', 10], ['C₂', 12], ['N₂', 14], ['O₂', 16], ['F₂', 18]]; NM = [['H₂', 2], ['He₂', 4], ['Li₂', 6], ['Be₂', 8], ['B₂', 10], ['C₂', 12], ['N₂', 14], ['O₂', 16]]; NM.push(['F₂', 18]);
+      play({
+        draw: function () {
+          var mi = Math.round(P.m), nm = NM[mi - 1], name = nm[0], ne = nm[1], sw = ne >= 15;
+          var L = mi === 1 || mi === 2 ? [['σ1s', 1, 0], ['σ*1s', 1, 1]] : null, lv;
+          if (mi <= 2) lv = [['σ1s', 1, 0, 0.0], ['σ*1s', 1, 1, 0.3]];
+          else { lv = [['σ1s', 1, 0, 0], ['σ*1s', 1, 1, 0.05], ['σ2s', 1, 0, 0.3], ['σ*2s', 1, 1, 0.38]]; if (sw) lv.push(['π2p', 2, 0, 0.55], ['σ2p', 1, 0, 0.5]); else lv.push(['σ2p', 1, 0, 0.5], ['π2p', 2, 0, 0.55]); }
+          // proper order by energy
+          var ordr = mi <= 2 ? ['σ1s', 'σ*1s'] : (sw ? ['σ1s', 'σ*1s', 'σ2s', 'σ*2s', 'σ2p', 'π2p', 'π*2p', 'σ*2p'] : ['σ1s', 'σ*1s', 'σ2s', 'σ*2s', 'π2p', 'σ2p', 'π*2p', 'σ*2p']);
+          var cap = { 'σ1s': 2, 'σ*1s': 2, 'σ2s': 2, 'σ*2s': 2, 'σ2p': 2, 'π2p': 4, 'π*2p': 4, 'σ*2p': 2 }, anti = { 'σ*1s': 1, 'σ*2s': 1, 'π*2p': 1, 'σ*2p': 1 };
+          var occ = {}, left = ne, nb = 0, na = 0, i, k, last = null, lumo = null;
+          // Be2/B2 etc: valence-only diagram drops 1s core for n>=3 (shown but dimmed)
+          ordr.forEach(function (o) { var c = cap[o], n = Math.min(c, left); occ[o] = n; left -= n; if (n > 0) last = o; });
+          var firstEmpty = ordr.find(function (o) { return occ[o] < cap[o]; }); var homo = last, lumoN = firstEmpty;
+          ordr.forEach(function (o) { if (anti[o]) na += occ[o]; else nb += occ[o]; });
+          var bo = (nb - na) / 2, unp = 0; ordr.forEach(function (o) { var c = cap[o], n = occ[o]; if (c === 4) { unp += n <= 2 ? n : 4 - n; } else if (n === 1) unp++; });
+          txt(name + '   electrons = ' + ne, 10, 18, '#e2e8f0', 15); txt('Bond order = (' + nb + ' − ' + na + ') / 2 = ' + bo, 10, 36, bo > 0 ? '#4ade80' : '#f87171', 13); txt((unp ? 'Paramagnetic (' + unp + ' unpaired e⁻)' : 'Diamagnetic') + '   ' + (bo <= 0 ? '— molecule does not exist' : ''), 10, 54, unp ? '#fbbf24' : '#93c5fd', 12);
+          var top = 70, bot = H - 52, ys = {}; var pos = mi <= 2 ? { 'σ1s': 0.12, 'σ*1s': 0.88 } : (function () { var p = { 'σ1s': 0.05, 'σ*1s': 0.15, 'σ2s': 0.32, 'σ*2s': 0.42, 'π2p': sw ? 0.56 : 0.52, 'σ2p': sw ? 0.52 : 0.58, 'π*2p': 0.74, 'σ*2p': 0.88 }; return p; })();
+          var cx = W / 2; ordr.forEach(function (o) { var y = bot - (bot - top) * (1 - pos[o]) * 0 - (bot - top) * (1 - pos[o]); y = top + (bot - top) * (1 - 0) * pos[o]; y = bot - (bot - top) * (1 - pos[o]) * 1; ys[o] = top + (bot - top) * pos[o]; });
+          // atomic levels
+          if (mi > 2) { ln(20, top + (bot - top) * 0.3, 70, top + (bot - top) * 0.3, '#64748b', 2); txt('2s', 36, top + (bot - top) * 0.3 - 4, '#64748b', 10); ln(W - 70, top + (bot - top) * 0.3, W - 20, top + (bot - top) * 0.3, '#64748b', 2); ln(20, top + (bot - top) * 0.66, 70, top + (bot - top) * 0.66, '#64748b', 2); txt('2p', 36, top + (bot - top) * 0.66 - 4, '#64748b', 10); ln(W - 70, top + (bot - top) * 0.66, W - 20, top + (bot - top) * 0.66, '#64748b', 2); }
+          else { var ym = top + (bot - top) * 0.5; ln(20, ym, 70, ym, '#64748b', 2); ln(W - 70, ym, W - 20, ym, '#64748b', 2); txt('1s', 36, ym - 4, '#64748b', 10); }
+          // flip display: lower energy at bottom
+          ordr.forEach(function (o) {
+            var y = bot - (bot - top) * (mi <= 2 ? (o === 'σ1s' ? 0.15 : 0.85) : (function () { var q = { 'σ1s': 0.02, 'σ*1s': 0.1, 'σ2s': 0.28, 'σ*2s': 0.38, 'π2p': sw ? 0.56 : 0.5, 'σ2p': sw ? 0.5 : 0.58, 'π*2p': 0.72, 'σ*2p': 0.86 }; return q[o]; })());
+            var n = cap[o] === 4 ? 2 : 1, isA = anti[o], x0 = cx - (n * 34) / 2, c = occ[o], j, ar = [0, 0, 0, 0];
+            var spots = n, fill = []; for (j = 0; j < n; j++) fill.push([0, 0]); var lf = c; for (j = 0; j < n && lf > 0; j++) { fill[j][0] = 1; lf--; } for (j = 0; j < n && lf > 0; j++) { fill[j][1] = 1; lf--; }
+            for (j = 0; j < n; j++) { ln(x0 + j * 36, y, x0 + j * 36 + 30, y, isA ? '#f472b6' : '#38bdf8', 3); if (fill[j][0]) txt('↑', x0 + j * 36 + 6, y - 4, '#e2e8f0', 15); if (fill[j][1]) txt('↓', x0 + j * 36 + 16, y - 4, '#e2e8f0', 15); }
+            txt(o, x0 + n * 36 + 4, y + 4, isA ? '#f9a8d4' : '#7dd3fc', 11);
+            if (o === homo) txt('HOMO', x0 - 40, y + 4, '#4ade80', 10); if (o === lumoN) txt('LUMO', x0 - 40, y + 4, '#fbbf24', 10);
+            if (mi > 2 && (o === 'σ1s' || o === 'σ*1s')) { }
+          });
+          txt('blue = bonding, pink = antibonding', 10, H - 22, '#94a3b8', 10); txt(sw ? 'O₂/F₂: σ2p below π2p (no s–p mixing)' : (mi > 2 ? 'Li₂–N₂: π2p below σ2p (s–p mixing)' : ''), 10, H - 6, '#94a3b8', 10);
+        }
+      });
+    }
+  });
+  SIM_LIB.push({
+    key: 'beerlambert', title: '2D · Beer-Lambert law and spectrophotometer', re: /beer.?lambert|beer.?s law|spectrophotomet|absorbance|transmittance|colorimet|molar absorptivity|molar extinction|calibration curve|path length|cuvette|\bepsilon\b/,
+    desc: 'light through a cuvette: path length, molar absorptivity, concentration and wavelength give absorbance and %transmittance, with a live calibration curve', note: 'A = εcl = log₁₀(I₀/I) = −log₁₀T. Absorbance is linear with concentration (calibration curve), and highest at λmax. %T = 100 × 10^(−A). Deviations occur at high concentration.',
+    fn: function () {
+      sl('c', 'Concentration', 0.01, 1, 0.3, 0.01, ' mM'); sl('l', 'Path length', 0.5, 5, 1, 0.1, ' cm'); sl('e', 'Molar absorptivity ε', 200, 3000, 1000, 50, ' M⁻¹cm⁻¹'); sl('w', 'Wavelength λ', 400, 700, 540, 5, ' nm');
+      var LM = 520;
+      function eps(w) { return P.e * Math.exp(-Math.pow((w - LM) / 70, 2) * 0.5) * 1 + P.e * 0.04; }
+      function A(c, l, w) { return eps(w) * (c / 1000) * l * 10; }
+      function wc(l) { var r, gg, b; if (l < 440) { r = (440 - l) / 60; gg = 0; b = 1; } else if (l < 490) { r = 0; gg = (l - 440) / 50; b = 1; } else if (l < 510) { r = 0; gg = 1; b = (510 - l) / 20; } else if (l < 580) { r = (l - 510) / 70; gg = 1; b = 0; } else if (l < 645) { r = 1; gg = (645 - l) / 65; b = 0; } else { r = 1; gg = 0; b = 0; } return [Math.round(255 * r), Math.round(255 * gg), Math.round(255 * b)]; }
+      play({
+        draw: function (t) {
+          var a = A(P.c, P.l, P.w), T = Math.pow(10, -a), col = wc(P.w), cs = 'rgb(' + col[0] + ',' + col[1] + ',' + col[2] + ')', top = 56, cy = top + 46;
+          rect(10, top, W - 20, 92, '#0b1220', '#334155'); rect(18, cy - 14, 28, 28, '#facc15', '#fde047'); txt('lamp', 18, cy + 28, '#fde047', 9); rect(70, cy - 12, 24, 24, '#475569'); txt('λ select', 62, cy + 28, '#94a3b8', 9);
+          var cw = 24 + P.l * 18, cx = W * 0.5 - cw / 2; var absCol = 'rgba(' + Math.round(255 - col[0] * 0.6) + ',' + Math.round(255 - col[1] * 0.6) + ',' + Math.round(255 - col[2] * 0.6) + ',' + clamp(0.1 + a * 0.35, 0, 0.9).toFixed(2) + ')'; rect(cx, cy - 26, cw, 52, absCol, '#cbd5e1'); txt('cuvette l = ' + P.l.toFixed(1) + ' cm', cx - 8, cy + 42, '#94a3b8', 9);
+          g.fillStyle = cs; g.globalAlpha = 0.9; g.fillRect(94, cy - 3, cx - 94, 6); g.globalAlpha = clamp(T, 0.04, 1); g.fillRect(cx + cw, cy - 3 - 4 * (1 - T) * 0, W * 0.7 - cx - cw, 6); g.globalAlpha = 1;
+          txt('I₀', 100, cy - 8, '#e2e8f0', 10); txt('I = ' + (T * 100).toFixed(1) + '% of I₀', cx + cw + 6, cy - 8, '#e2e8f0', 10); rect(W - 74, cy - 22, 60, 44, '#0b1220', '#64748b'); txt('A = ' + a.toFixed(3), W - 70, cy - 4, a > 2 ? '#f87171' : '#4ade80', 12); txt('%T ' + (T * 100).toFixed(1), W - 70, cy + 14, '#fbbf24', 11); txt('detector', W - 68, cy - 27, '#94a3b8', 9);
+          txt('A = εcl = ' + eps(P.w).toFixed(0) + ' × ' + (P.c / 1000).toFixed(5) + ' × ' + P.l.toFixed(1) + ' = ' + a.toFixed(3), 10, 16, '#e2e8f0', 12); txt(a > 2 ? 'Absorbance above 2: <1% light passes — unreliable reading' : 'λmax of the sample is ' + LM + ' nm (current ' + P.w + ' nm)', 10, 34, a > 2 ? '#f87171' : '#94a3b8', 11);
+          var gt = top + 112, gh = H - gt - 22, gw = (W - 36) / 2, o = G(30, gt, gw - 14, gh, 0, 1, 0, 3, 'c (mM)', 'A'); CV(o, function (x) { return A(x, P.l, P.w); }, 0, 1, '#a78bfa', 3); dot(o.X(P.c), o.Y(clamp(a, 0, 3)), 5, '#f97316'); ln(o.l, o.Y(2), o.l + o.w, o.Y(2), '#7f1d1d'); txt('calibration (slope ∝ εl)', 34, gt + 11, '#c4b5fd', 9);
+          var o2 = G(30 + gw + 6, gt, gw - 14, gh, 400, 700, 0, 3, 'λ (nm)', 'A spectrum'); CV(o2, function (w) { return A(P.c, P.l, w); }, 400, 700, '#38bdf8', 2); ln(o2.X(P.w), gt, o2.X(P.w), gt + gh, cs, 2); dot(o2.X(P.w), o2.Y(clamp(a, 0, 3)), 4, '#f97316');
+        }
+      });
+    }
+  });
+  SIM_LIB.push({
+    key: 'faraday', title: "2D · Faraday's laws of electrolysis", re: /faraday|electroly[sz]|electrodeposit|electroplat|mass deposited|charge (passed|required)|coulomb|equivalent mass|cathode.{0,12}anode.{0,12}(deposit|plat)|molten nacl|current efficiency/,
+    desc: 'electrolytic cell depositing Cu, Ag, Zn, Al or Ni at the cathode with sliders for current and time and live mass-deposited readout', note: "Faraday's first law: m = (M/nF)·I·t, where F = 96500 C/mol. Charge Q = It. Moles of electrons = Q/F. Same charge deposits masses in the ratio of equivalent masses (M/n), second law.",
+    fn: function () {
+      sl('I', 'Current', 0.5, 10, 2, 0.5, ' A'); sl('t', 'Time', 10, 3600, 600, 10, ' s'); sl('M', 'Metal (1 Ag, 2 Cu, 3 Ni, 4 Zn, 5 Al)', 1, 5, 2, 1); sl('sp', 'Playback speed', 1, 200, 60, 1, '×');
+      var MT = [['Ag', 107.87, 1, '#e5e7eb'], ['Cu', 63.55, 2, '#c2410c'], ['Ni', 58.69, 2, '#9ca3af'], ['Zn', 65.38, 2, '#94a3b8'], ['Al', 26.98, 3, '#d1d5db']], el = 0, ion = [];
+      function mt() { return MT[Math.round(P.M) - 1]; }
+      function mass(tt) { var m = mt(); return m[1] / (m[2] * 96500) * P.I * tt; }
+      function rst() { el = 0; ion = []; for (var i = 0; i < 18; i++) ion.push({ x: rnd(0.1, 0.9), y: rnd(0.2, 0.9), v: rnd(0.4, 1) }); }
+      play({
+        setup: rst, reset: rst, change: function (k) { if (k !== 'sp') el = 0; },
+        step: function (dt) { el += dt * P.sp; if (el > P.t) el = P.t; ion.forEach(function (p) { p.x += (0.5 - p.x) * 0; p.y += 0; p.x += (Math.random() - 0.5) * 0.01 - 0.12 * dt * (P.I / 5) * (p.x > 0.5 ? 1 : -1) * 0; }); },
+        draw: function (t) {
+          var m = mt(), e = Math.min(el, P.t), Q = P.I * e, mol = Q / 96500, ms = mass(e), full = mass(P.t), bw = W - 30, bh = 120, l = 15, top = 56, i;
+          rect(l, top, bw, bh, 'rgba(56,189,248,.18)', '#94a3b8'); var cx = l + bw * 0.22, ax = l + bw * 0.78, th = clamp(ms / Math.max(full, 1e-9), 0, 1) * 18; rect(cx - 6, top - 10, 12, bh * 0.85, '#334155', '#94a3b8'); rect(cx - 6 - th, top + 6, th, bh * 0.6, m[3]); rect(cx + 6, top + 6, th, bh * 0.6, m[3]); rect(ax - 6, top - 10, 12, bh * 0.85, '#111827', '#94a3b8');
+          txt('Cathode (−)', cx - 28, top + bh + 14, '#fca5a5', 10); txt('Anode (+)', ax - 22, top + bh + 14, '#93c5fd', 10); txt(m[0] + (m[2] > 1 ? '^' + m[2] + '+' : '⁺') + ' + ' + m[2] + 'e⁻ → ' + m[0], cx - 28, top + bh + 28, '#fbbf24', 10);
+          ion.forEach(function (p, i) { var u = (t * 0.2 * (P.I / 4) + p.v + i * 0.13) % 1, x = ax - (ax - cx) * u * 0.9 - 8, y = top + 14 + ((i * 29) % 90); dot(x, y, 4, m[3]); });
+          for (i = 0; i < 6; i++) { var uu = (t * 0.5 * (P.I / 4) + i / 6) % 1; dot(ax + (cx - ax) * uu, top - 18, 2.5, '#38bdf8'); } ln(cx, top - 10, cx, top - 18, '#94a3b8', 2); ln(ax, top - 10, ax, top - 18, '#94a3b8', 2); ln(cx, top - 18, ax, top - 18, '#94a3b8', 2); txt('e⁻', (cx + ax) / 2 - 6, top - 22, '#38bdf8', 10);
+          txt('t = ' + e.toFixed(0) + ' / ' + P.t + ' s   Q = I·t = ' + Q.toFixed(0) + ' C', 10, 16, '#e2e8f0', 12); txt('n(e⁻) = Q/F = ' + mol.toFixed(5) + ' mol   → mass ' + m[0] + ' = ' + ms.toFixed(4) + ' g', 10, 34, '#4ade80', 12);
+          var gl = 40, gt = top + bh + 44, gw = W - gl - 14, gh = H - gt - 22, o = G(gl, gt, gw, gh, 0, P.t, 0, Math.max(full, 1e-6) * 1.05, 't (s)', 'mass (g)'); CV(o, mass, 0, P.t, '#a78bfa', 3); dot(o.X(e), o.Y(ms), 5, '#f97316'); txt('m = (M/nF)·I·t   M=' + m[1] + ', n=' + m[2], gl + 4, gt + gh - 5, '#94a3b8', 10);
+        }
+      });
+    }
+  });
+  SIM_LIB.push({
+    key: 'colligative', title: "2D · Colligative properties and van't Hoff factor", re: /colligative|van.?t ?hoff|boiling point elevation|freezing point depression|elevation (of|in) boiling|depression (of|in) freezing|osmotic pressure|osmosis|relative lowering|ebullioscopic|cryoscopic|molality/,
+    desc: 'two beakers (pure solvent vs solution) with solute type glucose, NaCl, MgCl2 or acetic acid, showing boiling point elevation, freezing point depression, osmotic pressure and the van\'t Hoff factor i', note: 'ΔTb = i·Kb·m, ΔTf = i·Kf·m, π = i·CRT, relative lowering of vapour pressure = i·x(solute). For water Kb = 0.52 and Kf = 1.86 K kg/mol. i ≈ 1 for glucose, ≈ 2 for NaCl, ≈ 3 for MgCl₂, and between 1 and 2 for a partly dissociating acid like acetic acid (<1 for association).',
+    fn: function () {
+      sl('S', 'Solute (1 Glucose, 2 NaCl, 3 MgCl₂, 4 Acetic acid)', 1, 4, 2, 1); sl('m', 'Molality m', 0.1, 3, 1, 0.1, ' mol/kg'); sl('T', 'Temperature of the bath', -15, 115, 25, 1, ' °C');
+      var SO = [['Glucose', 1, 'does not ionise'], ['NaCl', 1.9, 'Na⁺ + Cl⁻ (almost complete)'], ['MgCl₂', 2.7, 'Mg²⁺ + 2Cl⁻'], ['Acetic acid', 1.02, 'partly ionised (weak acid)']], ps = [], bub = [];
+      function iF() { return SO[Math.round(P.S) - 1][1]; }
+      function init() { ps = []; for (var i = 0; i < 40; i++) ps.push({ x: rnd(0, 1), y: rnd(0, 1), a: rnd(0, 6.283) }); bub = []; }
+      play({
+        setup: init, reset: init,
+        step: function (dt) { var sp = 0.08 + 0.1 * Math.max(0, P.T) / 100; ps.forEach(function (p) { p.x += Math.cos(p.a) * sp * dt; p.y += Math.sin(p.a) * sp * dt; if (p.x < 0 || p.x > 1) { p.a = Math.PI - p.a; p.x = clamp(p.x, 0, 1); } if (p.y < 0 || p.y > 1) { p.a = -p.a; p.y = clamp(p.y, 0, 1); } }); },
+        draw: function (t) {
+          var i_ = iF(), so = SO[Math.round(P.S) - 1], dTb = i_ * 0.52 * P.m, dTf = i_ * 1.86 * P.m, Tb = 100 + dTb, Tf = -dTf, pi = i_ * P.m * 0.0821 * (P.T + 273.15) * 1, top = 54, bw = W * 0.4, bh = 90, l1 = 12, l2 = W - 12 - bw, i;
+          function beaker(x, sol, Tbp, Tfp, nm) { rect(x, top, bw, bh, 'rgba(56,189,248,.2)', '#cbd5e1'); var frozen = P.T < Tfp, boil = P.T >= Tbp; if (frozen) { rect(x + 1, top + 1, bw - 2, bh - 2, 'rgba(226,232,240,.55)'); for (var k = 0; k < 6; k++) ln(x + 8 + k * bw / 6, top + 8, x + 18 + k * bw / 6, top + bh - 8, '#f1f5f9', 1); } if (boil) { for (var b = 0; b < 8; b++) dot(x + 8 + ((b * 37) % (bw - 16)), top + bh - ((t * 40 + b * 23) % bh), 2.5, '#e2e8f0'); } if (sol) { var n = Math.round(14 + 8 * Math.min(P.m, 3)); for (var q = 0; q < Math.min(n, 40); q++) { var p = ps[q]; if (i_ > 1.5 && q % 2) dot(x + p.x * bw, top + 8 + p.y * (bh - 16), 3, '#f87171'); else dot(x + p.x * bw, top + 8 + p.y * (bh - 16), 3.4, '#fbbf24'); } } txt(nm, x + 2, top + bh + 13, '#e2e8f0', 11); txt('bp ' + Tbp.toFixed(2) + '°C', x + 2, top + bh + 27, '#fb923c', 10); txt('fp ' + Tfp.toFixed(2) + '°C', x + 2, top + bh + 40, '#93c5fd', 10); txt(frozen ? 'FROZEN' : (boil ? 'BOILING' : 'liquid'), x + bw - 56, top + 14, frozen ? '#e2e8f0' : (boil ? '#fb923c' : '#4ade80'), 10); }
+          beaker(l1, false, 100, 0, 'Pure water'); beaker(l2, true, Tb, Tf, so[0] + ' ' + P.m.toFixed(1) + ' m');
+          txt("i = " + i_.toFixed(2) + '   (' + so[2] + ')', 10, 16, '#e2e8f0', 12); txt('ΔTb = ' + dTb.toFixed(2) + ' K    ΔTf = ' + dTf.toFixed(2) + ' K    π ≈ ' + pi.toFixed(1) + ' atm', 10, 34, '#fbbf24', 11);
+          var gt = top + bh + 56, gh = H - gt - 22, gl = 36, gw = W - gl - 14, o = G(gl, gt, gw, gh, 0, 3, 0, 12, 'molality m', 'ΔT (K)'); var iss = [1, 1.9, 2.7, 1.02]; var cl = ['#4ade80', '#38bdf8', '#f472b6', '#fbbf24']; var nms = ['glu', 'NaCl', 'MgCl₂', 'AcOH'];
+          [0, 1, 2, 3].forEach(function (k) { CV(o, function (x) { return iss[k] * 1.86 * x; }, 0, 3, cl[k], k === Math.round(P.S) - 1 ? 3 : 1); txt(nms[k], o.X(3) - 34, o.Y(iss[k] * 1.86 * 3) + 10 * (k === 3 ? 1 : 0), cl[k], 9); }); dot(o.X(P.m), o.Y(dTf), 5, '#f97316'); txt('ΔTf lines (ΔTb = same shape × 0.28)', gl + 4, gt + 11, '#94a3b8', 9);
+          txt('Solute lowers vapour pressure → higher bp, lower fp (more particles = bigger effect)', 10, H - 6, '#94a3b8', 9);
+        }
+      });
+    }
+  });
 
   /* ---------- photo attach ---------- */
   var pend = null;
