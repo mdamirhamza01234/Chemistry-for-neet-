@@ -1773,7 +1773,7 @@
     var inDeck = figDeck().indexOf(f.id) > -1;
     el.innerHTML = (flash ? '<div class="ffl" data-a="flip">' + figEsc(figTitle(f)) + '<small>Pehle yaad karo, phir tap karke diagram dekho</small></div>' : '<img alt="' + figEsc(figTitle(f)) + '" loading="lazy" src="' + f.f + '" data-a="zoom"><div class="fcap">' + figEsc(figTitle(f)) + '</div>') +
       '<div class="fsub">' + chLabel(f.ch) + ' · ' + figEsc(f.t) + ' · PDF page ' + f.p + ' · tumhare PDF se</div>' +
-      '<div class="fbt"><button type="button" data-a="pdf">Open in PDF</button><button type="button" data-a="deck">' + (inDeck ? '✓ In flashcards' : '＋ Flashcard') + '</button><button type="button" data-a="decks">My cards (' + figDeck().length + ')</button><button type="button" data-a="aiimg">🎨 AI image</button></div>';
+      '<div class="fbt"><button type="button" data-a="pdf">Open in PDF</button><button type="button" data-a="deck">' + (inDeck ? '✓ In flashcards' : '＋ Flashcard') + '</button><button type="button" data-a="decks">My cards (' + figDeck().length + ')</button><button type="button" data-a="aiimg">🎨 AI image</button><button type="button" data-a="web">🌐 Web image</button></div>';
     el.addEventListener('click', function (e) {
       var a = e.target.getAttribute && e.target.getAttribute('data-a'); if (!a) return;
       if (a === 'zoom') figZoom(f);
@@ -1781,6 +1781,7 @@
         var h = el.querySelector('.ffl'); var im = document.createElement('img'); im.src = f.f; im.alt = ''; im.setAttribute('data-a', 'zoom'); h.replaceWith(im);
       }
       else if (a === 'aiimg') { if (!el.getAttribute('data-ai')) { el.setAttribute('data-ai', '1'); aiImageInto(el, figImgPrompt(f)); } }
+      else if (a === 'web') { if (!el.getAttribute('data-web')) { el.setAttribute('data-web', '1'); webImageInto(el, (f.cap || f.t || '') + ' ' + (f.t || '')); } }
       else if (a === 'pdf') figOpenPdf(f);
       else if (a === 'deck') { var d = figDeck(), k = d.indexOf(f.id); if (k > -1) d.splice(k, 1); else d.push(f.id); figDeckSave(d); e.target.textContent = k > -1 ? '＋ Flashcard' : '✓ In flashcards'; var bd = el.querySelector('[data-a=decks]'); if (bd) bd.textContent = 'My cards (' + d.length + ')'; }
       else if (a === 'decks') { var dd = figDeck(); if (dd.length) figDeckView(Math.max(0, dd.indexOf(f.id))); }
@@ -1929,6 +1930,49 @@
     } catch (e) {
       var m = String(e && e.message || e);
       box.innerHTML = '<div class="ffl" style="cursor:default">Image generate nahi hui.<small>' + figEsc(/quota|billing|limit|exceed|RESOURCE|permission|not found|not supported/i.test(m) ? 'Tumhari Gemini key par image model chalu nahi hai (free key par aksar band hota hai, billing chahiye). PDF wala figure ya SVG diagram use karo.' : m.slice(0, 160)) + '</small></div>';
+    }
+    scrollEnd();
+  }
+
+  /* ---------- internet images (Wikimedia Commons, free licences) ---------- */
+  function webQuery(q) {
+    var t = String(q).toLowerCase().replace(/[^a-z0-9ऀ-ॿ\s\-\+]/g, ' ');
+    var stop = /^(a|an|the|of|in|on|for|to|me|my|please|plz|show|give|get|find|bring|send|draw|make|create|generate|image|images|picture|pictures|photo|photos|figure|fig|diagram|diagrams|digram|labelled|labeled|chart|table|sketch|internet|web|online|dikhao|dikha|dikhado|dikha\s*do|banao|bana|do|de|dena|dedo|ka|ki|ke|ko|se|ye|yeh|wo|vo|hai|hain|aur|mujhe|mere|app|ai|chat|from|about|with|and|please|kar|karo|batao|bata|samjhao)$/;
+    return t.split(/\s+/).filter(function (w) { return w && !stop.test(w); }).slice(0, 7).join(' ');
+  }
+  async function webImageSearch(q) {
+    var base = 'https://commons.wikimedia.org/w/api.php?action=query&format=json&origin=*&generator=search&gsrnamespace=6&gsrlimit=12&prop=imageinfo&iiprop=url|size|mime|extmetadata&iiurlwidth=900&gsrsearch=';
+    var tries = [q, q.split(' ').slice(0, 3).join(' ')], seen = {};
+    for (var i = 0; i < tries.length; i++) {
+      if (!tries[i] || seen[tries[i]]) continue; seen[tries[i]] = 1;
+      var res = await fetch(base + encodeURIComponent(tries[i] + ' filetype:bitmap|drawing'));
+      if (!res.ok) continue;
+      var j = await res.json(), pages = j && j.query && j.query.pages ? Object.keys(j.query.pages).map(function (k) { return j.query.pages[k]; }) : [];
+      pages.sort(function (a, b) { return (a.index || 0) - (b.index || 0); });
+      var ok = pages.map(function (p) { var ii = p.imageinfo && p.imageinfo[0]; return ii && /^image\/(jpeg|png|svg\+xml|gif)$/.test(ii.mime) && ii.width >= 300 && ii.thumburl ? { title: String(p.title).replace(/^File:/, '').replace(/\.[a-z]+$/i, '').replace(/_/g, ' '), img: ii.thumburl, page: ii.descriptionurl, lic: (ii.extmetadata && ii.extmetadata.LicenseShortName && ii.extmetadata.LicenseShortName.value) || '', by: ((ii.extmetadata && ii.extmetadata.Artist && ii.extmetadata.Artist.value) || '').replace(/<[^>]+>/g, '').slice(0, 60) } : null; }).filter(Boolean);
+      if (ok.length) return ok.slice(0, 2);
+    }
+    return [];
+  }
+  async function webImageInto(host, q, quiet) {
+    var term = webQuery(q); if (!term) return;
+    var box = document.createElement('div'); box.className = 'fgc';
+    box.innerHTML = '<div class="ffl" style="cursor:default"><span class="dots"><i></i><i></i><i></i></span> Internet par image dhoondh raha hai…</div>';
+    host.appendChild(box); scrollEnd();
+    try {
+      var r = await webImageSearch(term);
+      if (!r.length) { if (quiet) box.remove(); else box.innerHTML = '<div class="ffl" style="cursor:default">Internet par is topic ki free image nahi mili.<small>AI ka banaya diagram upar dekho ya ⚙ se 🎨 AI image try karo.</small></div>'; return; }
+      box.innerHTML = '';
+      r.forEach(function (x) {
+        var f = { id: 'web-image', f: x.img, ti: x.title };
+        var d = document.createElement('div');
+        d.innerHTML = '<img alt="' + figEsc(x.title) + '" loading="lazy" src="' + figEsc(x.img) + '" data-a="zoom"><div class="fcap">🌐 ' + figEsc(x.title) + '</div><div class="fsub">Internet se (Wikimedia Commons)' + (x.lic ? ' · ' + figEsc(x.lic) : '') + (x.by ? ' · ' + figEsc(x.by) : '') + ' · <a href="' + figEsc(x.page) + '" target="_blank" rel="noopener" style="color:#7dd3fc">source</a> · exam ke liye PDF/NCERT figure ko hi sahi maano</div>';
+        d.addEventListener('click', function (e) { if (e.target.getAttribute && e.target.getAttribute('data-a') === 'zoom') figZoom(f); });
+        var im = d.querySelector('img'); im.onerror = function () { d.remove(); if (!box.children.length) box.remove(); };
+        box.appendChild(d);
+      });
+    } catch (e) {
+      if (quiet) box.remove(); else box.innerHTML = '<div class="ffl" style="cursor:default">Internet image load nahi hui.<small>Net on hai? Thodi der baad try karo.</small></div>';
     }
     scrollEnd();
   }
@@ -2891,6 +2935,7 @@
         else if (!sm && engine === 'device' && wantsSim(q)) answer += '\n\n' + simMissing();
       }
       var fsp = figSplit(answer); bubble.innerHTML = md(fsp.text, true); figAttach(bubble, fsp.ids, wantsFlash(q)); simAttach(bubble, fsp.sims);
+      if ((wantsFig(q) || imgReq) && !fsp.ids.length && !fsp.sims.length && navigator.onLine !== false) webImageInto(bubble, q, true);
       if (imgReq && engine === 'gemini') aiImageInto(bubble, q + '. Clean, colourful, well-labelled educational illustration for a Class 11-12 NCERT Chemistry / NEET student. English labels, white background.');
       addMeta(bubble, label, docs);
       history.push({ role: 'ai', text: answer, engine: label, docs: docs.slice(0, 3).map(function (d) { return { ch: d.ch, title: d.title }; }) });
