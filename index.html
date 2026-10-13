@@ -444,6 +444,10 @@
   .btn2:active { transform: scale(.96); } .btn2:disabled { opacity: .5; }
   .status { margin-top: 10px; font-size: 12.5px; color: var(--muted); line-height: 1.5; word-break: break-word; }
   .status.ok { color: #a78bfa; } .status.bad { color: #fb7185; }
+  .lab-list { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
+  .lab-item { display: flex; align-items: center; gap: 12px; width: 100%; text-align: left; padding: 12px 14px; border-radius: 14px; background: var(--surface2); border: 1px solid var(--line); color: var(--text); font-size: 14.5px; font-weight: 600; }
+  .lab-item:active { transform: scale(.98); }
+  .lab-item i { flex: none; width: 28px; height: 28px; border-radius: 9px; display: grid; place-items: center; font-style: normal; font-size: 13px; font-weight: 800; background: rgba(167,139,250,.18); color: #c4b5fd; }
   .sheet-actions { display: flex; gap: 10px; margin-top: 20px; } .sheet-actions .btn { flex: 1; justify-content: center; }
   .sheet-actions .ghost { flex: none; background: var(--surface2); color: var(--text); box-shadow: none; border: 1px solid var(--line); }
 
@@ -745,7 +749,7 @@
         <span class="info">
           <span class="num">New NCERT &bull; Class 11 &bull; Lab Manual</span>
           <span class="title">Experimental Chemistry (Class 11)</span>
-          <span class="sub">Lab Techniques, Purification, Equilibrium, pH, Titration &amp; Salt Analysis</span>
+          <span class="sub">7 units: Lab Techniques, Purification, Equilibrium, pH, Titration &amp; Salt Analysis &mdash; tap to see the list</span>
         </span>
         <span class="go" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></span>
       </button>
@@ -754,7 +758,7 @@
         <span class="info">
           <span class="num">New NCERT &bull; Class 12 &bull; Lab Manual</span>
           <span class="title">Experimental Chemistry (Class 12)</span>
-          <span class="sub">Colloids, Kinetics, Electrochemistry, Redox Titration, Organic Tests &amp; Preparations</span>
+          <span class="sub">11 units: Colloids, Kinetics, Electrochemistry, Redox Titration, Organic Tests &amp; Preparations &mdash; tap to see the list</span>
         </span>
         <span class="go" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></span>
       </button>
@@ -1145,6 +1149,14 @@
   <button class="dr-item" data-act="contact" type="button"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.2" cy="6.8" r="1" style="fill:currentColor"/></svg><span>Contact Us<small>Jald aa raha hai</small></span></button>
 </aside>
 
+<div class="sheet-bg" id="labBg" hidden>
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="labTitle">
+    <h3 id="labTitle">Experimental Chemistry</h3>
+    <p class="hint" id="labHint"></p>
+    <div class="lab-list" id="labList"></div>
+    <div class="sheet-actions"><button class="btn ghost" type="button" id="labClose">Close</button></div>
+  </div>
+</div>
 <div class="sheet-bg" id="libBg" hidden>
   <div class="sheet" role="dialog" aria-modal="true" aria-label="Library">
     <h3 id="libTitle"></h3>
@@ -1179,8 +1191,6 @@
     { n: 17, file: "pdfs/new-17-aldehydes-ketones-and-carboxylic-acids.pdf" },
     { n: 18, file: "pdfs/new-18-amines.pdf" },
     { n: 19, file: "pdfs/new-19-biomolecules.pdf" },
-    { n: 20, file: "pdfs/new-20-experimental-chemistry-class-11.pdf" },
-    { n: 21, file: "pdfs/new-21-experimental-chemistry-class-12.pdf" },
     { n: 101, file: "pdfs/old-01-some-basic-concepts-of-chemistry.pdf" },
     { n: 102, file: "pdfs/old-02-structure-of-atom.pdf" },
     { n: 103, file: "pdfs/old-03-classification-of-elements-and-periodicity-in-properties.pdf" },
@@ -1222,10 +1232,36 @@
   }
   window.__toast = toast; window.__CHAPTERS = CHAPTERS;
 
+  /* Experimental Chemistry lab manuals: the card opens a list of units, each unit is its own PDF */
+  var LAB = { 20: { cl: 11, title: 'Experimental Chemistry (Class 11)', units: ["Introduction", "Basic Laboratory Techniques", "Purification and Criteria of Purity", "Chemical Equilibrium", "pH and pH Change in Aqueous Solutions", "Titrimetric Analysis", "Systematic Qualitative Analysis"] },
+              21: { cl: 12, title: 'Experimental Chemistry (Class 12)', units: ["Colloids", "Chemical Kinetics", "Thermochemical Measurement", "Electrochemistry", "Chromatography", "Titrimetric Analysis (Redox Reactions)", "Systematic Qualitative Analysis", "Tests for Functional Groups in Organic Compounds", "Preparation of Inorganic Compounds", "Preparation of Organic Compounds", "Tests for Carbohydrates, Fats and Proteins"] } };
+  function labSlug(t) { return t.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, ''); }
+  var labBg = document.getElementById('labBg');
+  function labOpen(n) {
+    var L = LAB[n], list = document.getElementById('labList'); list.innerHTML = '';
+    document.getElementById('labTitle').textContent = L.title;
+    document.getElementById('labHint').textContent = 'NCERT Laboratory Manual \u00b7 Class ' + L.cl + ' \u00b7 ' + L.units.length + ' units. Tap a unit to open its PDF.';
+    L.units.forEach(function (u, i) {
+      var b = document.createElement('button'); b.type = 'button'; b.className = 'lab-item';
+      var k = document.createElement('i'); k.textContent = i + 1; var t = document.createElement('span'); t.textContent = 'Unit ' + (i + 1) + ' \u00b7 ' + u;
+      b.appendChild(k); b.appendChild(t);
+      b.onclick = function () {
+        var f = 'pdfs/lab' + L.cl + '-' + (i < 9 ? '0' : '') + (i + 1) + '-' + labSlug(u) + '.pdf';
+        toast('Opening ' + u + '\u2026');
+        window.location.href = 'pdf-viewer.html?f=' + encodeURIComponent(f) + '&t=' + encodeURIComponent('Lab ' + L.cl + ' \u00b7 Unit ' + (i + 1) + ' \u00b7 ' + u);
+      };
+      list.appendChild(b);
+    });
+    labBg.hidden = false;
+  }
+  document.getElementById('labClose').onclick = function () { labBg.hidden = true; };
+  labBg.addEventListener('click', function (e) { if (e.target === labBg) labBg.hidden = true; });
+
   /* chapter buttons */
   document.getElementById('grid').addEventListener('click', function (e) {
     var b = e.target.closest('.chapter'); if (!b) return;
-    var n = +b.dataset.n, item = CHAPTERS.filter(function (c) { return c.n === n; })[0];
+    var n = +b.dataset.n; if (LAB[n]) { labOpen(n); return; }
+    var item = CHAPTERS.filter(function (c) { return c.n === n; })[0];
     if (!item || !item.file) { toast('This chapter PDF is not added yet'); return; }
     toast('Opening ' + chLabel(n) + '…');
     var ttl = (b.querySelector('.title') || {}).textContent || 'PDF';

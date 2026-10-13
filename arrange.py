@@ -1,7 +1,8 @@
 """Copies the chapter PDFs from the repo root into www/pdfs/ under the names the app expects.
 
 Two editions, matched by the letter + two digits the file name starts with (rest of the name is free):
-  New NCERT (rationalised, 19 chapters + 2 lab manuals):  N01 ... N21   e.g. "N05_Thermodynamics.pdf"
+  New NCERT (rationalised, 19 chapters):  N01 ... N19
+  Experimental Chemistry lab manual units (shown under New NCERT):  L11_01 ... L11_07 (Class 11), L12_01 ... L12_11 (Class 12)   e.g. "N05_Thermodynamics.pdf"
   Old NCERT (full older books, 30 chapters): O01 ... O30   e.g. "O12_Organic_Chemistry.pdf"
 Chapters are numbered continuously across Class 11 and Class 12 inside each edition (see CHAPTERS below)."""
 import glob, os, re, shutil
@@ -26,8 +27,6 @@ CHAPTERS = [  # (edition, number, expected name)
     ("new", 17, "new-17-aldehydes-ketones-and-carboxylic-acids"),  # Class 12 Aldehydes, Ketones and Carboxylic Acids
     ("new", 18, "new-18-amines"),  # Class 12 Amines
     ("new", 19, "new-19-biomolecules"),  # Class 12 Biomolecules
-    ("new", 20, "new-20-experimental-chemistry-class-11"),  # Lab manual Class 11
-    ("new", 21, "new-21-experimental-chemistry-class-12"),  # Lab manual Class 12
     ("old", 1, "old-01-some-basic-concepts-of-chemistry"),  # Class 11 Some Basic Concepts of Chemistry
     ("old", 2, "old-02-structure-of-atom"),  # Class 11 Structure of Atom
     ("old", 3, "old-03-classification-of-elements-and-periodicity-in-properties"),  # Class 11 Classification of Elements and Periodicity in Properties
@@ -80,6 +79,18 @@ for ed, n, name in CHAPTERS:
     else:
         missing.append(f"{ed}-{n:02d}")
         print(f"::warning::{ed} chapter {n:02d}: no matching PDF found")
+# Experimental Chemistry lab manual: one PDF per unit, files named L11_NN_*.pdf / L12_NN_*.pdf
+import re as _re
+def _slug(t): return _re.sub(r"[^a-z0-9]+", "-", t.lower()).strip("-")
+LAB = {11: ["Introduction", "Basic Laboratory Techniques", "Purification and Criteria of Purity", "Chemical Equilibrium", "pH and pH Change in Aqueous Solutions", "Titrimetric Analysis", "Systematic Qualitative Analysis"], 12: ["Colloids", "Chemical Kinetics", "Thermochemical Measurement", "Electrochemistry", "Chromatography", "Titrimetric Analysis (Redox Reactions)", "Systematic Qualitative Analysis", "Tests for Functional Groups in Organic Compounds", "Preparation of Inorganic Compounds", "Preparation of Organic Compounds", "Tests for Carbohydrates, Fats and Proteins"]}
+for cl, units in LAB.items():
+    for i, t in enumerate(units, 1):
+        hits = [p for p in pdfs if _re.match(r"\s*L%d[-_ .]?0*%d(?!\d)" % (cl, i), p, _re.I) and p.upper().startswith("L%d" % cl)]
+        dst = f"www/pdfs/lab{cl}-{i:02d}-{_slug(t)}.pdf"
+        if hits:
+            shutil.copyfile(hits[0], dst); print(f"lab {cl} unit {i:02d} -> {hits[0]}")
+        else:
+            print(f"::warning::lab {cl} unit {i:02d}: no matching PDF found")
 # Old NCERT chapters whose PDF is not uploaded yet but whose content is the same in the new NCERT:
 # the Old chapter opens the New chapter's PDF (no duplicate file in the APK). Upload the real O-file and it is used instead.
 OLD_TO_NEW = {1: 1, 2: 2, 3: 3, 4: 4, 6: 5, 7: 6, 8: 7, 12: 8, 13: 9, 16: 10, 17: 11, 18: 12,
