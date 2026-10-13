@@ -1,7 +1,7 @@
 """Copies the chapter PDFs from the repo root into www/pdfs/ under the names the app expects.
 
 Two editions, matched by the letter + two digits the file name starts with (rest of the name is free):
-  New NCERT (rationalised, 19 chapters):  N01 ... N19   e.g. "N05_Thermodynamics.pdf"
+  New NCERT (rationalised, 19 chapters + 2 lab manuals):  N01 ... N21   e.g. "N05_Thermodynamics.pdf"
   Old NCERT (full older books, 30 chapters): O01 ... O30   e.g. "O12_Organic_Chemistry.pdf"
 Chapters are numbered continuously across Class 11 and Class 12 inside each edition (see CHAPTERS below)."""
 import glob, os, re, shutil
@@ -26,6 +26,8 @@ CHAPTERS = [  # (edition, number, expected name)
     ("new", 17, "new-17-aldehydes-ketones-and-carboxylic-acids"),  # Class 12 Aldehydes, Ketones and Carboxylic Acids
     ("new", 18, "new-18-amines"),  # Class 12 Amines
     ("new", 19, "new-19-biomolecules"),  # Class 12 Biomolecules
+    ("new", 20, "new-20-experimental-chemistry-class-11"),  # Lab manual Class 11
+    ("new", 21, "new-21-experimental-chemistry-class-12"),  # Lab manual Class 12
     ("old", 1, "old-01-some-basic-concepts-of-chemistry"),  # Class 11 Some Basic Concepts of Chemistry
     ("old", 2, "old-02-structure-of-atom"),  # Class 11 Structure of Atom
     ("old", 3, "old-03-classification-of-elements-and-periodicity-in-properties"),  # Class 11 Classification of Elements and Periodicity in Properties
