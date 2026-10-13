@@ -1223,7 +1223,7 @@
     { n: 130, file: "pdfs/old-30-chemistry-in-everyday-life.pdf" }
   ];
   /* label shown everywhere: "New 05" / "Old 12" */
-  window.chLabel = function (n) { var o = n >= 100, k = o ? n - 100 : n; return (o ? 'Old ' : 'New ') + (k < 10 ? '0' + k : k); };
+  window.chLabel = function (n) { if (n === 20 || n === 21) return 'Lab ' + (n === 20 ? '11' : '12'); var o = n >= 100, k = o ? n - 100 : n; return (o ? 'Old ' : 'New ') + (k < 10 ? '0' + k : k); };
 
   var toastEl = document.getElementById('toast'), toastTimer;
   function toast(msg) {
@@ -1714,13 +1714,13 @@
     res.sort(function (x, y) { return y.sc - x.sc; });
     return res.slice(0, k);
   }
-  function wantsFig(q) { return /diagram|digram|dia?gram|figure|\bfig\b|image|picture|photo|draw|sketch|chitra|tasveer|banao|bana\s*do|dikha|flash\s*-?card|\bcard\b|labell?ed|structure/i.test(q); }
+  function wantsFig(q) { return /diagram|digram|dia?gram|figure|\bfig\b|image|picture|photo|draw|sketch|chitra|tasveer|banao|bana\s*do|dikha|flash\s*-?card|\bcard\b|labell?ed|structure|table|tabular|chart|apparatus|set.?up|graph/i.test(q); }
   function wantsFlash(q) { return /flash\s*-?card|\bcard/i.test(q); }
   function figPrompt(c) {
     if (!c.length) return '';
     var t = '\n\nFIGURES FROM THE STUDENT\'S OWN PDF (real, high quality, cropped from the book):\n';
     c.forEach(function (x) { t += '- id=' + x.f.id + ' | ' + chLabel(x.f.ch) + ' ' + x.f.t + ' | page ' + x.f.p + ' | ' + (x.f.n ? 'Figure ' + x.f.n + ': ' : '') + String(x.f.cap || x.f.s || '').slice(0, 110).replace(/\s+/g, ' ') + '\n'; });
-    t += 'FIGURE RULE: if the student asks for a diagram, figure, image, labelled picture or flashcard and one of the figures above clearly shows exactly that topic, put [[FIG:id]] (use the exact id, at most 2 markers, each on its own line) at the very START of your reply, then a short explanation. In that case do NOT draw an SVG. If none of them clearly matches, ignore this list, never output a marker, and follow the DIAGRAMS rule instead.';
+    t += 'FIGURE RULE: if the student asks for a diagram, figure, image, table, chart, labelled picture or flashcard and one of the figures or tables above (ids with Table in the name are tables) clearly shows exactly that topic, put [[FIG:id]] (use the exact id, at most 2 markers, each on its own line) at the very START of your reply, then a short explanation. In that case do NOT draw an SVG. If none of them clearly matches, ignore this list, never output a marker, and draw a fresh SVG following the DIAGRAMS rule instead (for a table, draw it as a clean SVG table).';
     return t;
   }
   function figSplit(text, partial) {
@@ -1731,12 +1731,12 @@
   }
   function figImgPrompt(f) { return 'Clean, colourful, well-labelled educational textbook illustration of: ' + (f.cap || f.t) + ' (' + f.t + ', Class 11-12 NCERT Chemistry, NEET). White background, large clear English labels, no watermark.'; }
   function figEsc(t) { return String(t).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
-  function figTitle(f) { if (f.ti) return f.ti; return f.n ? 'Figure ' + f.n + (f.cap ? ' · ' + f.cap : '') : 'Diagram · ' + f.t + ' · page ' + f.p; }
+  function figTitle(f) { if (f.ti) return f.ti; if (f.k === 't') return f.n + (f.cap ? ' · ' + f.cap : ''); return f.n ? 'Figure ' + f.n + (f.cap ? ' · ' + f.cap : '') : 'Diagram · ' + f.t + ' · page ' + f.p; }
   function figDeck() { try { return JSON.parse(localStorage.getItem('fig_deck') || '[]').filter(function (i) { return FIG_BY[i]; }); } catch (e) { return []; } }
   function figDeckSave(a) { try { localStorage.setItem('fig_deck', JSON.stringify(a)); } catch (e) {} }
   function figOpenPdf(f) {
-    var c = (window.__CHAPTERS || []).filter(function (x) { return x.n === f.ch; })[0]; if (!c) return;
-    window.location.href = 'pdf-viewer.html?f=' + encodeURIComponent(c.file) + '&t=' + encodeURIComponent(chLabel(f.ch) + ' · ' + f.t) + '&p=' + f.p;
+    var c = f.pf ? { file: f.pf } : (window.__CHAPTERS || []).filter(function (x) { return x.n === f.ch; })[0]; if (!c) return;
+    window.location.href = 'pdf-viewer.html?f=' + encodeURIComponent(c.file) + '&t=' + encodeURIComponent(f.pf ? f.t : chLabel(f.ch) + ' · ' + f.t) + '&p=' + f.p;
   }
   function figOverlay(build) {
     var o = document.createElement('div'); o.className = 'fov';
