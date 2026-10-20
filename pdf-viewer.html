@@ -1824,12 +1824,12 @@ setTimeout(function(){ if(pages.length) savePos(); }, 1500);
   async function gemma(prompt){
     if(!G) throw new Error('Offline Gemma sirf installed app mein chalta hai.');
     var s = await G.status();
-    if(!s.hasModel) throw new Error('Gemma model abhi set nahi hai. Home page > Ask AI > Settings se model chuno.');
+    if(!(s.hasModel || s.installed)) throw new Error('Gemma model abhi set nahi hai. Home page > Ask AI > Settings se model chuno.');
     if(!s.loaded) await G.load();
     var r = await G.generate({ prompt: prompt });
     return String(r.text || '').replace(/<end_of_turn>[\s\S]*$/, '').trim();
   }
-  async function hasGemma(){ if(!G) return false; try { return !!(await G.status()).hasModel; } catch(e){ return false; } }
+  async function hasGemma(){ if(!G) return false; try { var gs = await G.status(); return !!(gs.hasModel || gs.installed); } catch(e){ return false; } }
 
   /* ---- page text ---- */
   async function ctxText(max){
@@ -1838,28 +1838,6 @@ setTimeout(function(){ if(pages.length) savePos(); }, 1500);
     if(out.length < max * 0.6 && n < N){ try { out += ' ' + await pageSpeechText(pages[n]); } catch(e){} }
     return out.slice(0, max);
   }
-  var PTC = {};
-  async function pgText(i){ if(PTC[i] != null) return PTC[i]; var t = ''; try { t = await pageSpeechText(pages[i]); } catch(e){} return (PTC[i] = t || ''); }
-  async function refText(q, max){
-    var m = q.match(/(example|eg|ex\.?|illustration|fig(?:ure)?|table|question|exercise|problem|intext|in-text)\s*\.?\s*([0-9]+(?:\s*[.\-]\s*[0-9]+)?)/i);
-    if(!m) return '';
-    var num = m[2].replace(/\s+/g, '').replace('-', '.'), kind = m[1].toLowerCase();
-    var re = new RegExp('(^|[^0-9.])' + num.replace(/\./g, '\\s*\\.\\s*') + '(?![0-9])');
-    var key = /^ex|illus/.test(kind) ? /example|illustration/i : /^fig/.test(kind) ? /fig/i : /^table/.test(kind) ? /table/i : null;
-    var cur = curPage() - 1, order = [cur];
-    for(var d = 1; d < pages.length; d++){ if(cur + d < pages.length) order.push(cur + d); if(cur - d >= 0) order.push(cur - d); }
-    for(var k = 0; k < order.length; k++){
-      var t = await pgText(order[k]);
-      var idx = -1, g = new RegExp(re.source, 'g'), mm;
-      while((mm = g.exec(t))){ var pre = t.slice(Math.max(0, mm.index - 25), mm.index + 1); if(!key || key.test(pre)){ idx = mm.index; break; } }
-      if(idx >= 0){
-        var out = t.slice(Math.max(0, idx - 40)); if(out.length < max * 0.7 && order[k] + 1 < pages.length) out += ' ' + await pgText(order[k] + 1);
-        return '\n\nREFERENCED ITEM (' + m[1] + ' ' + num + ') found on page ' + (order[k] + 1) + ':\n' + out.slice(0, max);
-      }
-    }
-    return '\n\n(Student asked for ' + m[1] + ' ' + num + ' but it was not found in the text of this PDF.)';
-  }
-  function nowStr(){ var d = new Date(); try { return d.toLocaleString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' }); } catch(e){ return d.toString(); } }
   var RULES = 'You are "Chemistry AI", a friendly Class 11 and 12 Chemistry (NEET) tutor inside the Chemistry for NEET app. The student is reading a book page right now. Use the PAGE TEXT as the main source and say which concept it is about. If the page text does not answer the question, use standard Class 11 and 12 NCERT chemistry and say it is general knowledge. Reply in the same language as the student (Hindi, English or Hinglish). Be short and step by step; give key terms and a tiny example when useful. Add a NEET exam tip only for real chemistry questions. If the student asks for an example, figure, table or question by its number, solve or explain exactly that item using the REFERENCED ITEM text. For non-chemistry questions (date, time, greetings) answer in one short line with no tips. For date or time use ONLY the CURRENT DATE given below, never guess one. Write arrows as \\rightarrow, \\downarrow (precipitate) and \\uparrow (gas). Write any equation in simple LaTeX inside single dollar signs, e.g. $2H_2 + O_2 \\rightarrow 2H_2O$. Put an important equation alone on a line as $$ ... $$. Never write math with curly braces in plain text.';
 
   /* ---- UI ---- */
@@ -1868,7 +1846,7 @@ setTimeout(function(){ if(pages.length) savePos(); }, 1500);
   var SYM = { alpha:'α',beta:'β',gamma:'γ',delta:'δ',epsilon:'ε',varepsilon:'ε',zeta:'ζ',eta:'η',theta:'θ',vartheta:'ϑ',lambda:'λ',mu:'μ',nu:'ν',xi:'ξ',pi:'π',rho:'ρ',sigma:'σ',tau:'τ',phi:'φ',varphi:'φ',chi:'χ',psi:'ψ',omega:'ω',
     Gamma:'Γ',Delta:'Δ',Theta:'Θ',Lambda:'Λ',Pi:'Π',Sigma:'Σ',Phi:'Φ',Psi:'Ψ',Omega:'Ω',
     cdot:'·',times:'×',div:'÷',pm:'±',mp:'∓',approx:'≈',sim:'∼',simeq:'≃',ll:'≪',gg:'≫',le:'≤',leq:'≤',ge:'≥',geq:'≥',ne:'≠',neq:'≠',equiv:'≡',propto:'∝',infty:'∞',
-    downarrow:'↓',uparrow:'↑',Downarrow:'⇓',Uparrow:'⇑',updownarrow:'↕',rightleftharpoons:'⇌',leftrightharpoons:'⇌',longrightarrow:'⟶',longleftarrow:'⟵',xrightarrow:'→',uparrows:'↑',downarrows:'↓',to:'→',rightarrow:'→',leftarrow:'←',Rightarrow:'⇒',Leftrightarrow:'⇔',leftrightarrow:'↔',partial:'∂',nabla:'∇',int:'∫',oint:'∮',sum:'∑',prod:'∏',circ:'°',degree:'°',
+    to:'→',rightarrow:'→',leftarrow:'←',Rightarrow:'⇒',Leftrightarrow:'⇔',leftrightarrow:'↔',partial:'∂',nabla:'∇',int:'∫',oint:'∮',sum:'∑',prod:'∏',circ:'°',degree:'°',
     ldots:'…',cdots:'⋯',dots:'…',therefore:'∴',because:'∵',angle:'∠',perp:'⊥',parallel:'∥',in:'∈',hbar:'ħ',ell:'ℓ',prime:'′',
     sin:'sin',cos:'cos',tan:'tan',cot:'cot',sec:'sec',csc:'csc',log:'log',ln:'ln',exp:'exp',lim:'lim',min:'min',max:'max' };
   var FUNCS = { sin:1,cos:1,tan:1,cot:1,sec:1,csc:1,cosec:1,log:1,ln:1,exp:1,lim:1,min:1,max:1,sinh:1,cosh:1,tanh:1 };
@@ -1986,18 +1964,18 @@ setTimeout(function(){ if(pages.length) savePos(); }, 1500);
         var past = hist.slice(-6), label = '', ans = '';
         if(eng === 'gemini'){
           try {
-            var page = await ctxText(6000) + await refText(q, 3500);
-            var sys = RULES + '\n\nCURRENT DATE: ' + nowStr() + '\n\nChapter: ' + title + ' | Page ' + curPage() + '\nPAGE TEXT:\n' + (page || '(is page ka text nahi mila - shayad scanned image hai)');
+            var page = await ctxText(7000);
+            var sys = RULES + '\n\nChapter: ' + title + ' | Page ' + curPage() + '\nPAGE TEXT:\n' + (page || '(is page ka text nahi mila - shayad scanned image hai)');
             var g = await gemini(sys, past.concat([{ r: 'u', t: q }]), on); ans = g.t; label = 'Gemini · ' + g.m;
           } catch(e){ if(!keyErr(e) && mode === 'auto' && await hasGemma()) eng = 'device'; else throw e; }
         }
         if(eng === 'device'){
           bub.innerHTML = '<span style="color:var(--soft)">Gemma soch raha hai…</span>';
-          var pg = await refText(q, 1500) || await ctxText(1300);
-          ans = await gemma('<start_of_turn>user\n' + RULES + '\n\nCURRENT DATE: ' + nowStr() + '\n\nChapter: ' + title + ' | Page ' + curPage() + '\nPAGE TEXT:\n' + (pg || '(no text)') + '\n\nStudent question: ' + q + '<end_of_turn>\n<start_of_turn>model\n');
+          var pg = await ctxText(1300);
+          ans = await gemma('<start_of_turn>user\n' + RULES + '\n\nChapter: ' + title + ' | Page ' + curPage() + '\nPAGE TEXT:\n' + (pg || '(no text)') + '\n\nStudent question: ' + q + '<end_of_turn>\n<start_of_turn>model\n');
           label = 'Gemma · on-device'; on(ans);
         }
-        if(!ans || !String(ans).trim()) throw new Error('AI ne khaali jawab diya. Dobara try karo ya sawal thoda alag likho.');
+        if(!ans) throw new Error('Khaali jawab aaya.');
         bub.innerHTML = md(ans) + '<span class="eng">' + esc(label) + '</span>';
         hist.push({ r: 'u', t: q }, { r: 'a', t: ans });
       }
